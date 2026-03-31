@@ -461,7 +461,7 @@ body::after {
 /* Key metrics full row */
 .metrics-row {
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(6,1fr);
   gap:10px;
   grid-column: 1 / -1;
 }
@@ -2105,10 +2105,6 @@ tbody tr:last-child td { border-bottom:none; }
           <div class="ai-module-icon">📉</div>
           <div class="ai-module-info"><div class="ai-module-name">Technical Analysis</div><div class="ai-module-firm">Citadel Style</div></div>
         </div>
-        <div class="ai-module-btn" onclick="selectModule(7,this)">
-          <div class="ai-module-icon">🔍</div>
-          <div class="ai-module-info"><div class="ai-module-name">Competitive Analysis</div><div class="ai-module-firm">Bain & Company</div></div>
-        </div>
         <div class="ai-module-btn" onclick="selectModule(8,this)">
           <div class="ai-module-icon">🔢</div>
           <div class="ai-module-info"><div class="ai-module-name">Pattern Finder</div><div class="ai-module-firm">Renaissance Tech</div></div>
@@ -2172,6 +2168,10 @@ tbody tr:last-child td { border-bottom:none; }
         <div class="ai-module-btn" onclick="selectWealthModule(6,this)">
           <div class="ai-module-icon">💰</div>
           <div class="ai-module-info"><div class="ai-module-name">Dividend Strategy</div><div class="ai-module-firm">Harvard Endowment</div></div>
+        </div>
+        <div class="ai-module-btn" onclick="selectWealthModule(7,this)">
+          <div class="ai-module-icon">🔍</div>
+          <div class="ai-module-info"><div class="ai-module-name">Competitive Analysis</div><div class="ai-module-firm">Bain & Company</div></div>
         </div>
         <div class="ai-module-btn" onclick="selectWealthModule(9,this)">
           <div class="ai-module-icon">🌍</div>
@@ -4728,7 +4728,6 @@ const FULL_REPORT_MODULES = [
   { idx: 1, icon: '🏦', name: 'Morgan Stanley DCF' },
   { idx: 3, icon: '📋', name: 'JPMorgan Earnings Analysis' },
   { idx: 5, icon: '📉', name: 'Citadel Technical Analysis' },
-  { idx: 7, icon: '🔍', name: 'Bain Competitive Analysis' },
   { idx: 8, icon: '🔢', name: 'Renaissance Pattern Finder' },
 ];
 
@@ -4780,7 +4779,7 @@ function renderFullReportParams() {
       Fill in individual modules using the sidebar on the left — then run the full report below.
       Modules with data will run automatically.
     </div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${rows}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">${rows}</div>
     ${readyMsg}
     <button class="btn-analyze" onclick="runFullReport()" style="background:var(--amber);color:var(--bg);" ${runDisabled}>⚡ Run Full Report</button>
   `;
@@ -5260,7 +5259,6 @@ const TICKER_MODULES = [
   { idx: 1, name: 'DCF',        paramId: 'p_ticker' },
   { idx: 3, name: 'Earnings',   paramId: 'p_ticker' },
   { idx: 5, name: 'Technical',  paramId: 'p_ticker' },
-  { idx: 7, name: 'Competitive',paramId: 'p_sector'  }, // uses sector not ticker
   { idx: 8, name: 'Pattern',    paramId: 'p_ticker' },
 ];
 
@@ -6353,7 +6351,7 @@ function onTickerKeydown(event) {
 // WEALTH MANAGEMENT — module selection & rendering
 // ============================================================
 
-const WEALTH_MODULE_INDICES = [2, 4, 6, 9]; // Bridgewater, BlackRock, Harvard, McKinsey
+const WEALTH_MODULE_INDICES = [2, 4, 6, 7, 9]; // Bridgewater, BlackRock, Harvard, Bain, McKinsey
 
 function selectWealthModule(idx, btn) {
   // Save current module's param values before switching
@@ -6594,8 +6592,8 @@ Date: March 2026.`;
 function renderWealthReportParams() {
   const container = document.getElementById('wealthParams');
   const wm = WEALTH_MARKET[activeMarket];
-  const icons = { 2:'⚠️', 4:'🏗️', 6:'💰', 9:'🌍' };
-  const names = { 2:'Risk Assessment', 4:'Portfolio Builder', 6:'Dividend Strategy', 9:'Macro Impact' };
+  const icons = { 2:'⚠️', 4:'🏗️', 6:'💰', 7:'🔍', 9:'🌍' };
+  const names = { 2:'Risk Assessment', 4:'Portfolio Builder', 6:'Dividend Strategy', 7:'Competitive Analysis', 9:'Macro Impact' };
 
   // Build status rows based on what's already filled in individual modules
   const rows = WEALTH_MODULE_INDICES.map(idx => {
@@ -6634,7 +6632,7 @@ function renderWealthReportParams() {
       ${wm.flag} <strong style="color:var(--text2);">${wm.label}</strong> — Fill in individual modules using the sidebar, then run the full report below.
       Modules with data will run automatically.
     </div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${rows}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">${rows}</div>
     ${readyMsg}
     <button class="btn-analyze" onclick="runFullWealthReport()" style="background:linear-gradient(135deg,#7B2FFF,#4F46E5);color:#fff;" ${runDisabled}>💎 Run Full Wealth Report</button>
   `;
@@ -6671,8 +6669,8 @@ async function runFullWealthReport() {
   if (btn) { btn.disabled = true; btn.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`; }
 
   // Build progress UI
-  const icons = { 2:'⚠️', 4:'🏗️', 6:'💰', 9:'🌍' };
-  const names = { 2:'Risk Assessment', 4:'Portfolio Builder', 6:'Dividend Strategy', 9:'Macro Impact' };
+  const icons = { 2:'⚠️', 4:'🏗️', 6:'💰', 7:'🔍', 9:'🌍' };
+  const names = { 2:'Risk Assessment', 4:'Portfolio Builder', 6:'Dividend Strategy', 7:'Competitive Analysis', 9:'Macro Impact' };
   const steps = modulesToRun.map((idx,i) =>
     `<div class="fr-step" id="wr-step-${i}">
       <div class="fr-step-icon">${icons[idx]}</div>
