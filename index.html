@@ -1845,6 +1845,14 @@ tbody tr:last-child td { border-bottom:none; }
   transition: all 0.15s;
   text-align: left;
 }
+.chat-bubble table td, .chat-bubble table th {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  color: var(--text2);
+}
+.chat-bubble table tr:last-child td { border-bottom: none; }
+.chat-bubble table tr:hover td { background: var(--bg3); }
 .chat-suggest-btn:hover { color: var(--green); border-color: var(--green); background: var(--green-dim); }
 
 @media (max-width:900px) {
@@ -2954,7 +2962,8 @@ const reportCache = {};
 let frLastParams   = null;   // legacy — kept for retry compatibility
 let activeTab      = 'overview'; // tracks which tab user is currently on
 let frLastResults  = [];     // array of { fm, mod, parsed, error } — mutable for retries
-let frRunning      = false;  // guard against concurrent runs
+let frRunning      = false;  // guard against concurrent AI Analysis runs
+let wrRunning      = false;  // guard against concurrent Wealth runs
 
 const MODULES = [
   {
@@ -3779,9 +3788,11 @@ function switchTab(name) {
     }
   }
   if (name === 'wealth') {
-    // Select first wealth module btn
-    const firstBtn = document.querySelector('#tab-wealth .ai-module-btn:not(.full-report)');
-    selectWealthModule(activeWealthModule, firstBtn);
+    // Don't re-render if a report is currently generating — would wipe the output
+    if (!wrRunning) {
+      const firstBtn = document.querySelector('#tab-wealth .ai-module-btn:not(.full-report)');
+      selectWealthModule(activeWealthModule, firstBtn);
+    }
   }
 }
 
@@ -4897,23 +4908,33 @@ async function runFullReport() {
 
     try {
       const prompt = mod.prompt(params, stockContext);
-      const res  = await anthropicFetch(anthropicKey, {
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 3000,
-        system: 'You are a financial analysis engine. You MUST respond with raw JSON only. Never use markdown code fences. Output only the JSON object itself, starting with { and ending with }.',
-        messages: [{ role: 'user', content: prompt }]
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+      let parsed = null;
+      let lastError = null;
 
-      const text = data.content?.[0]?.text || '';
-      let parsed;
-      try {
-        let jsonStr = text.replace(/^```[\w\s]*\n?/gm,'').replace(/```\s*$/gm,'').trim();
-        const s = jsonStr.indexOf('{'), e2 = jsonStr.lastIndexOf('}');
-        if (s !== -1 && e2 !== -1) jsonStr = jsonStr.slice(s, e2+1);
-        parsed = JSON.parse(jsonStr);
-      } catch(pe) { throw new Error('JSON parse failed'); }
+      // Try up to 2 times — DCF models can be verbose and hit token limits
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await anthropicFetch(anthropicKey, {
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 4000,
+            system: 'You are a financial analysis engine. You MUST respond with raw JSON only. Never use markdown code fences. Output only the JSON object itself, starting with { and ending with }.',
+            messages: [{ role: 'user', content: prompt }]
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+          const text = data.content?.[0]?.text || '';
+          let jsonStr = text.replace(/^```[\w\s]*\n?/gm,'').replace(/```\s*$/gm,'').trim();
+          const s = jsonStr.indexOf('{'), e2 = jsonStr.lastIndexOf('}');
+          if (s !== -1 && e2 !== -1) jsonStr = jsonStr.slice(s, e2+1);
+          parsed = JSON.parse(jsonStr);
+          break; // success — exit retry loop
+        } catch(retryErr) {
+          lastError = retryErr;
+          if (attempt === 0) await new Promise(r => setTimeout(r, 1000)); // wait 1s before retry
+        }
+      }
+
+      if (!parsed) throw lastError || new Error('Failed after 2 attempts');
 
       frLastResults.push({ fm, mod, parsed, error: null });
       updateStep(i, 'done');
@@ -6664,9 +6685,11 @@ function isWealthModuleReady(idx) {
 
 async function runFullWealthReport() {
   if (!anthropicKey) { openSettings(); return; }
+  if (wrRunning) { showToast('Wealth report already running...'); return; }
   const modulesToRun = WEALTH_MODULE_INDICES.filter(idx => isWRModuleReady(idx));
   if (!modulesToRun.length) { showToast('Fill in at least one module to run the Full Wealth Report'); return; }
 
+  wrRunning = true;
   const wm = WEALTH_MARKET[activeMarket];
   const outputEl = document.getElementById('wealthOutput');
   const toolbar  = document.getElementById('wealthReportToolbar');
@@ -6790,6 +6813,7 @@ Platforms: ${wm.platforms}. Instruments: ${wm.typicalInstruments}. Date: March 2
   reportCache[-2] = { html: outputEl.innerHTML, toolbarVisible: true, label: `Full Wealth Report · ${wm.flag}`, timestamp: new Date() };
   showToast(`✓ Full Wealth Report — ${wm.flag} ${wm.label} complete`);
   if (btn) { btn.disabled = false; btn.innerHTML = '💎 Run Full Wealth Report'; }
+  wrRunning = false;
 }
 
 function exportWealthPDF() { window.print(); }
@@ -7110,8 +7134,35 @@ function renderChatMessage(msg) {
 // ── Simple markdown renderer ──
 function chatRenderMarkdown(text) {
   if (!text) return '';
+
+  // ── Tables: convert markdown tables to styled HTML ──
+  text = text.replace(/(\|.+\|\n\|[-| :]+\|\n(?:\|.+\|\n?)+)/g, (tableBlock) => {
+    const lines = tableBlock.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return tableBlock;
+
+    const headers = lines[0].split('|').map(h => h.trim()).filter(Boolean);
+    // Skip separator line (index 1)
+    const rows = lines.slice(2).map(row =>
+      row.split('|').map(c => c.trim()).filter(Boolean)
+    );
+
+    const headerHTML = headers.map(h => `<th>${h}</th>`).join('');
+    const rowsHTML = rows.map(row =>
+      `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`
+    ).join('');
+
+    return `<div style="overflow-x:auto;margin:8px 0;">
+      <table style="width:100%;border-collapse:collapse;font-size:10px;font-family:'JetBrains Mono',monospace;">
+        <thead><tr style="background:var(--bg3);border-bottom:1px solid var(--green);color:var(--green);letter-spacing:0.08em;">${headerHTML}</tr></thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    </div>`;
+  });
+
   return text
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    // Re-allow our injected table HTML
+    .replace(/&lt;(\/?(div|table|thead|tbody|tr|th|td|strong|em|code)[^&]*)&gt;/g, '<$1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
