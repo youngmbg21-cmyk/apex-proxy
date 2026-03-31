@@ -117,7 +117,49 @@ body::after {
 .search-bar input::placeholder { color: var(--text3); text-transform: none; }
 .search-icon { color: var(--text3); font-size:12px; }
 
-/* ===== AI TAB STOCK CONTEXT BANNER ===== */
+/* ===== TICKER SEARCH DROPDOWN ===== */
+.ticker-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.ticker-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 280px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 200;
+  overflow: hidden;
+  animation: dropdownFade 0.15s ease-out;
+}
+@keyframes dropdownFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ticker-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid var(--border);
+}
+.ticker-dropdown-item:last-child { border-bottom: none; }
+.ticker-dropdown-item:hover { background: var(--bg3); }
+.ticker-dropdown-item.selected { background: var(--green-dim); }
+.ticker-dd-flag  { font-size: 14px; flex-shrink: 0; }
+.ticker-dd-info  { flex: 1; min-width: 0; }
+.ticker-dd-name  { font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticker-dd-exch  { font-size: 9px; color: var(--text3); letter-spacing: 0.06em; margin-top: 1px; }
+.ticker-dd-sym   { font-size: 12px; font-weight: 700; color: var(--green); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.ticker-dd-loading { padding: 12px; text-align: center; font-size: 11px; color: var(--text3); }
+.ticker-dd-empty   { padding: 12px; text-align: center; font-size: 11px; color: var(--text3); }
 .ai-stock-banner {
   display: none;
   align-items: center;
@@ -1612,6 +1654,32 @@ tbody tr:last-child td { border-bottom:none; }
 .chat-hbtn.clear { width: auto; padding: 4px 10px; font-size: 10px; letter-spacing: 0.06em; }
 .chat-hbtn.clear:hover { color: var(--red); border-color: var(--red); }
 
+/* Simple/Expert mode toggle */
+.chat-mode-toggle {
+  display: flex;
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.chat-mode-btn {
+  background: none;
+  border: none;
+  padding: 4px 9px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  color: var(--text3);
+  transition: all 0.15s;
+}
+.chat-mode-btn.active {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
 /* Context pills */
 .chat-pills {
   display: flex;
@@ -1850,9 +1918,16 @@ tbody tr:last-child td { border-bottom:none; }
       <button class="market-btn" id="mktBtn-SE" onclick="switchMarket('SE',this)">🇸🇪 <span class="market-badge">SE</span></button>
       <button class="market-btn" id="mktBtn-UK" onclick="switchMarket('UK',this)">🇬🇧 <span class="market-badge">UK</span></button>
     </div>
-    <div class="search-bar">
-      <span class="search-icon">⌕</span>
-      <input type="text" id="tickerInput" placeholder="Enter ticker... e.g. AAPL" maxlength="12" onkeydown="if(event.key==='Enter'){this.value=this.value.toUpperCase();loadStock()}" oninput="this.value=this.value.toUpperCase()">
+    <div class="ticker-search-wrap">
+      <div class="search-bar">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="tickerInput" placeholder="Search company or ticker…" maxlength="40"
+          autocomplete="off"
+          oninput="onTickerInput(this.value)"
+          onkeydown="onTickerKeydown(event)"
+          onblur="setTimeout(hideTickerDropdown, 200)">
+      </div>
+      <div class="ticker-dropdown" id="tickerDropdown" style="display:none;"></div>
     </div>
     <button class="btn-search" onclick="loadStock()">LOAD</button>
   </div>
@@ -2589,6 +2664,10 @@ tbody tr:last-child td { border-bottom:none; }
         <div class="chat-sub" id="chatSubtitle">Aware of your terminal context</div>
       </div>
       <div class="chat-header-btns">
+        <div class="chat-mode-toggle">
+          <button class="chat-mode-btn active" id="chatModeSimple" onclick="setChatMode('simple')" title="Plain English responses">SIMPLE</button>
+          <button class="chat-mode-btn" id="chatModeExpert" onclick="setChatMode('expert')" title="Technical financial responses">EXPERT</button>
+        </div>
         <button class="chat-hbtn clear" onclick="clearChat()" title="Clear chat">CLEAR</button>
         <button class="chat-hbtn" id="chatExpandBtn" onclick="toggleExpand()" title="Expand">⇤</button>
         <button class="chat-hbtn" onclick="minimiseChat()" title="Minimise">▼</button>
@@ -4182,9 +4261,13 @@ function renderFullReportParams() {
     const required = FR_REQUIRED[fm.idx] || [];
 
     const fields = mod.params.map(p => {
-      // Auto-fill ticker fields
+      // Auto-fill any field that relates to a stock ticker or holdings
       let autoVal = '';
-      if (p.id === 'p_ticker' && autoTicker) autoVal = autoTicker;
+      if (autoTicker) {
+        if (p.id === 'p_ticker')    autoVal = autoTicker;
+        if (p.id === 'p_portfolio') autoVal = `100% ${autoTicker}`;
+        if (p.id === 'p_holdings')  autoVal = `${autoTicker} stock`;
+      }
 
       if (p.type === 'select') {
         const opts = p.options.map(o => `<option value="${o}">${o}</option>`).join('');
@@ -4763,8 +4846,14 @@ function renderAIParams(m) {
     if (p.type==='select') {
       return `<div class="param-group"><div class="param-label">${p.label}</div><select class="param-select" id="${p.id}"><option value="">${p.label}</option>${p.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>`;
     }
-    // Auto-fill p_ticker with current loaded stock
-    const autoVal = (p.id === 'p_ticker' && currentTicker) ? currentTicker : '';
+    // Auto-fill fields that relate to a stock ticker or holdings
+    let autoVal = '';
+    if (currentTicker) {
+      const t = currentTicker.replace(/\.(ST|L)$/, '');
+      if (p.id === 'p_ticker')    autoVal = t;
+      if (p.id === 'p_portfolio') autoVal = `100% ${t}`;
+      if (p.id === 'p_holdings')  autoVal = `${t} stock`;
+    }
     return `<div class="param-group"><div class="param-label">${p.label}</div><input class="param-input" id="${p.id}" placeholder="${p.placeholder||''}" type="text" value="${autoVal}"></div>`;
   }).join('');
   html += `<button class="btn-analyze" onclick="runAnalysis()">▶ Analyze</button>`;
@@ -5402,7 +5491,7 @@ function applyMarket(code) {
 
   // Update ticker input placeholder
   const inp = document.getElementById('tickerInput');
-  if (inp) inp.placeholder = `e.g. ${m.placeholderTicker}`;
+  if (inp) inp.placeholder = `Search company or ticker… e.g. ${m.placeholderTicker}`;
 
   // Update beta benchmark sub-label
   const betaLbl = document.getElementById('betaBenchmark');
@@ -5557,10 +5646,156 @@ function syncAIWithStock(ticker, name, price, change, pct) {
     chgEl.className   = 'ai-stock-banner-change dn';
   }
 
-  const ptEl = document.getElementById('p_ticker');
-  if (ptEl) ptEl.value = ticker;
-  const frEl = document.getElementById('fr_ticker');
-  if (frEl) frEl.value = ticker;
+  // Autofill all relevant fields in individual module panel
+  const displayTicker = ticker.replace(/\.(ST|L)$/, '');
+  const fillMap = {
+    p_ticker:    displayTicker,
+    p_portfolio: `100% ${displayTicker}`,
+    p_holdings:  `${displayTicker} stock`,
+  };
+
+  // Individual module fields (currently visible single module)
+  Object.entries(fillMap).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
+
+  // Full Report fields (all modules) — only update if field hasn't been manually edited
+  if (typeof FULL_REPORT_MODULES !== 'undefined') {
+    FULL_REPORT_MODULES.forEach(fm => {
+      const mod = MODULES[fm.idx];
+      mod.params.forEach(p => {
+        if (fillMap[p.id]) {
+          const el = document.getElementById(`fr_${fm.idx}_${p.id}`);
+          if (el) {
+            el.value = fillMap[p.id];
+            updateFRModuleStatus(fm.idx);
+          }
+        }
+      });
+    });
+  }
+}
+
+// ============================================================
+// TICKER SEARCH — live Yahoo Finance autocomplete
+// ============================================================
+let tickerSearchTimer  = null;
+let tickerSearchIndex  = -1;
+let tickerSearchResults = [];
+
+async function onTickerInput(val) {
+  clearTimeout(tickerSearchTimer);
+  const q = val.trim();
+  if (q.length < 2) { hideTickerDropdown(); return; }
+
+  // Debounce 320ms
+  tickerSearchTimer = setTimeout(async () => {
+    showTickerDropdownLoading();
+    try {
+      const res  = await fetch(`${PROXY_BASE}/.netlify/functions/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      tickerSearchResults = data.results || [];
+      renderTickerDropdown(tickerSearchResults);
+    } catch(e) {
+      hideTickerDropdown();
+    }
+  }, 320);
+}
+
+function renderTickerDropdown(results) {
+  const dd = document.getElementById('tickerDropdown');
+  if (!dd) return;
+  tickerSearchIndex = -1;
+
+  if (!results.length) {
+    dd.innerHTML = `<div class="ticker-dd-empty">No results found</div>`;
+    dd.style.display = 'block';
+    return;
+  }
+
+  dd.innerHTML = results.map((r, i) =>
+    `<div class="ticker-dropdown-item" data-idx="${i}"
+       onmousedown="selectTickerResult(${i})"
+       onmouseover="setTickerIndex(${i})">
+      <span class="ticker-dd-flag">${r.flag}</span>
+      <div class="ticker-dd-info">
+        <div class="ticker-dd-name">${r.name}</div>
+        <div class="ticker-dd-exch">${r.exchange} · ${r.type}</div>
+      </div>
+      <span class="ticker-dd-sym">${r.symbol}</span>
+    </div>`
+  ).join('');
+  dd.style.display = 'block';
+}
+
+function showTickerDropdownLoading() {
+  const dd = document.getElementById('tickerDropdown');
+  if (dd) {
+    dd.innerHTML = `<div class="ticker-dd-loading"><span class="loading-dots"><span></span><span></span><span></span></span></div>`;
+    dd.style.display = 'block';
+  }
+}
+
+function showTickerDropdown() {
+  const dd = document.getElementById('tickerDropdown');
+  if (dd && tickerSearchResults.length) dd.style.display = 'block';
+}
+
+function hideTickerDropdown() {
+  const dd = document.getElementById('tickerDropdown');
+  if (dd) dd.style.display = 'none';
+  tickerSearchIndex = -1;
+}
+
+function setTickerIndex(i) {
+  tickerSearchIndex = i;
+  document.querySelectorAll('.ticker-dropdown-item').forEach((el, idx) => {
+    el.classList.toggle('selected', idx === i);
+  });
+}
+
+function selectTickerResult(i) {
+  const r = tickerSearchResults[i];
+  if (!r) return;
+  const input = document.getElementById('tickerInput');
+  // Strip .ST or .L for display — loadStock() will re-add via fullTicker()
+  // But since Yahoo returns the full symbol already (e.g. VOLV-B.ST), we keep it
+  // and let loadStock handle it — but strip suffix for display cleanliness
+  const displaySym = r.symbol.replace(/\.(ST|L)$/, '');
+  input.value = displaySym;
+  hideTickerDropdown();
+  loadStock();
+}
+
+function onTickerKeydown(event) {
+  const dd = document.getElementById('tickerDropdown');
+  const isOpen = dd && dd.style.display !== 'none';
+
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    if (isOpen && tickerSearchIndex >= 0) {
+      selectTickerResult(tickerSearchIndex);
+    } else {
+      hideTickerDropdown();
+      loadStock();
+    }
+    return;
+  }
+
+  if (!isOpen || !tickerSearchResults.length) return;
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    tickerSearchIndex = Math.min(tickerSearchIndex + 1, tickerSearchResults.length - 1);
+    setTickerIndex(tickerSearchIndex);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    tickerSearchIndex = Math.max(tickerSearchIndex - 1, 0);
+    setTickerIndex(tickerSearchIndex);
+  } else if (event.key === 'Escape') {
+    hideTickerDropdown();
+  }
 }
 
 // ============================================================
@@ -5571,6 +5806,29 @@ let chatOpen      = false;
 let chatExpanded  = false;
 let chatMinimised = false;
 let chatLoading   = false;
+let chatMode      = localStorage.getItem('apex_chat_mode') || 'simple'; // 'simple' | 'expert'
+
+function setChatMode(mode) {
+  chatMode = mode;
+  localStorage.setItem('apex_chat_mode', mode);
+  document.getElementById('chatModeSimple').classList.toggle('active', mode === 'simple');
+  document.getElementById('chatModeExpert').classList.toggle('active', mode === 'expert');
+  // Update subtitle
+  const sub = document.getElementById('chatSubtitle');
+  if (sub) sub.textContent = mode === 'simple'
+    ? 'Plain English mode · Aware of your terminal'
+    : 'Expert mode · Aware of your terminal';
+}
+
+function initChatMode() {
+  // Apply saved mode on open
+  document.getElementById('chatModeSimple')?.classList.toggle('active', chatMode === 'simple');
+  document.getElementById('chatModeExpert')?.classList.toggle('active', chatMode === 'expert');
+  const sub = document.getElementById('chatSubtitle');
+  if (sub) sub.textContent = chatMode === 'simple'
+    ? 'Plain English mode · Aware of your terminal'
+    : 'Expert mode · Aware of your terminal';
+}
 
 // Persist messages in localStorage
 const CHAT_STORAGE_KEY = 'apex_chat_history';
@@ -5632,6 +5890,18 @@ Today's date: ${new Date().toLocaleDateString('en-GB', {weekday:'long', year:'nu
   }
 
   ctx += `\n\nAnswer concisely and insightfully. Use bullet points for lists. Reference specific numbers from the context when relevant. If asked about something not in the context, use your general financial knowledge but note it's not from the current session data.`;
+
+  // Mode-specific instruction
+  if (chatMode === 'simple') {
+    ctx += `\n\nIMPORTANT — SIMPLE MODE: The user wants plain English explanations. Follow these rules strictly:
+- No financial jargon without immediate plain-English explanation in brackets. E.g. "P/E ratio (how much you pay for each £1 of company earnings)"
+- Use everyday analogies. E.g. "Think of it like buying a house — you want to pay less than it's worth"
+- Short sentences. Avoid walls of text.
+- Replace: "WACC" → "cost of capital", "DCF" → "estimated true value", "basis points" → "percentage points", "EPS" → "earnings per share (profit divided by number of shares)"
+- End answers with one simple "Bottom line:" sentence summarising the key takeaway.`;
+  } else {
+    ctx += `\n\nEXPERT MODE: The user is financially literate. Use precise financial terminology freely — P/E, EV/EBITDA, WACC, DCF, basis points, alpha, beta, Sharpe ratio etc. Be concise and data-driven. Skip basic explanations.`;
+  }
 
   return ctx;
 }
@@ -5825,6 +6095,7 @@ function openChat() {
   renderAllChatMessages();
   updateChatPills();
   updateChatSuggestions();
+  initChatMode();
   setTimeout(() => document.getElementById('chatInput').focus(), 100);
 }
 
