@@ -1955,6 +1955,7 @@ tbody tr:last-child td { border-bottom:none; }
 <div class="tabs">
   <div class="tab active" onclick="switchTab('overview')">📈 Overview</div>
   <div class="tab" onclick="switchTab('ai')">🤖 AI Analysis</div>
+  <div class="tab" onclick="switchTab('wealth')">💎 Wealth Mgmt</div>
   <div class="tab" onclick="switchTab('portfolio')">💼 Portfolio</div>
   <div class="tab" onclick="switchTab('macro')">🌍 Macro</div>
   <div class="tab" onclick="switchTab('guide')" style="margin-left:auto;">📖 Guide</div>
@@ -2065,10 +2066,10 @@ tbody tr:last-child td { border-bottom:none; }
   <div id="tab-ai" style="display:none;">
     <div class="ai-layout">
       <div class="ai-sidebar">
-        <div style="font-size:9px;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;padding:4px 2px;margin-bottom:4px;">Analysis Modules</div>
+        <div style="font-size:9px;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;padding:4px 2px;margin-bottom:4px;">Stock Analysis</div>
         <div class="ai-module-btn full-report" onclick="selectModule(-1,this)">
           <div class="ai-module-icon">⚡</div>
-          <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">Up to 10 modules · You choose · Master summary</div></div>
+          <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">All stock modules · Master summary</div></div>
         </div>
         <div class="full-report-divider"></div>
         <div class="ai-module-btn active" onclick="selectModule(0,this)">
@@ -2079,25 +2080,13 @@ tbody tr:last-child td { border-bottom:none; }
           <div class="ai-module-icon">🏦</div>
           <div class="ai-module-info"><div class="ai-module-name">DCF Valuation</div><div class="ai-module-firm">Morgan Stanley Style</div></div>
         </div>
-        <div class="ai-module-btn" onclick="selectModule(2,this)">
-          <div class="ai-module-icon">⚠️</div>
-          <div class="ai-module-info"><div class="ai-module-name">Risk Assessment</div><div class="ai-module-firm">Bridgewater Style</div></div>
-        </div>
         <div class="ai-module-btn" onclick="selectModule(3,this)">
           <div class="ai-module-icon">📋</div>
           <div class="ai-module-info"><div class="ai-module-name">Earnings Analysis</div><div class="ai-module-firm">JPMorgan Style</div></div>
         </div>
-        <div class="ai-module-btn" onclick="selectModule(4,this)">
-          <div class="ai-module-icon">🏗️</div>
-          <div class="ai-module-info"><div class="ai-module-name">Portfolio Builder</div><div class="ai-module-firm">BlackRock Style</div></div>
-        </div>
         <div class="ai-module-btn" onclick="selectModule(5,this)">
           <div class="ai-module-icon">📉</div>
           <div class="ai-module-info"><div class="ai-module-name">Technical Analysis</div><div class="ai-module-firm">Citadel Style</div></div>
-        </div>
-        <div class="ai-module-btn" onclick="selectModule(6,this)">
-          <div class="ai-module-icon">💰</div>
-          <div class="ai-module-info"><div class="ai-module-name">Dividend Strategy</div><div class="ai-module-firm">Harvard Endowment</div></div>
         </div>
         <div class="ai-module-btn" onclick="selectModule(7,this)">
           <div class="ai-module-icon">🔍</div>
@@ -2106,10 +2095,6 @@ tbody tr:last-child td { border-bottom:none; }
         <div class="ai-module-btn" onclick="selectModule(8,this)">
           <div class="ai-module-icon">🔢</div>
           <div class="ai-module-info"><div class="ai-module-name">Pattern Finder</div><div class="ai-module-firm">Renaissance Tech</div></div>
-        </div>
-        <div class="ai-module-btn" onclick="selectModule(9,this)">
-          <div class="ai-module-icon">🌍</div>
-          <div class="ai-module-info"><div class="ai-module-name">Macro Impact</div><div class="ai-module-firm">McKinsey Global</div></div>
         </div>
       </div>
 
@@ -2121,7 +2106,6 @@ tbody tr:last-child td { border-bottom:none; }
           </div>
           <div id="aiKeyWarning" style="font-size:10px;color:var(--amber);display:none;">⚠ Set Anthropic API key in ⚙ settings</div>
         </div>
-        <!-- Stock context banner — shown when a stock is loaded -->
         <div class="ai-stock-banner" id="aiStockBanner">
           <span>📊</span>
           <span class="ai-stock-banner-ticker" id="aiBannerTicker">—</span>
@@ -2130,9 +2114,7 @@ tbody tr:last-child td { border-bottom:none; }
           <span class="ai-stock-banner-price" id="aiBannerPrice"></span>
           <span class="ai-stock-banner-change" id="aiBannerChange"></span>
         </div>
-        <div class="ai-params" id="aiParams">
-          <!-- Injected per module -->
-        </div>
+        <div class="ai-params" id="aiParams"><!-- Injected per module --></div>
         <div class="report-toolbar" id="reportToolbar" style="display:none;">
           <span class="report-toolbar-label">Export Report</span>
           <button class="btn-export pdf" onclick="exportPDF()">🖨 PDF</button>
@@ -2145,7 +2127,69 @@ tbody tr:last-child td { border-bottom:none; }
         <div class="ai-output" id="aiOutput">
           <div class="ai-placeholder">
             <div class="ai-placeholder-icon">🤖</div>
-            <div class="ai-placeholder-text">Configure your parameters above and click Analyze to receive institutional-grade AI analysis powered by Claude.</div>
+            <div class="ai-placeholder-text">Select a module and configure parameters to receive institutional-grade stock analysis.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== WEALTH MANAGEMENT TAB ===== -->
+  <div id="tab-wealth" style="display:none;">
+    <div class="ai-layout">
+      <div class="ai-sidebar">
+        <div style="font-size:9px;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;padding:4px 2px;margin-bottom:4px;">Wealth Modules</div>
+        <div class="ai-module-btn full-report" onclick="selectWealthModule(-2,this)">
+          <div class="ai-module-icon">💎</div>
+          <div class="ai-module-info"><div class="ai-module-name">Full Wealth Report</div><div class="ai-module-firm" id="wealthReportFirm">All wealth modules · Master summary</div></div>
+        </div>
+        <div class="full-report-divider"></div>
+        <div class="ai-module-btn active" onclick="selectWealthModule(2,this)">
+          <div class="ai-module-icon">⚠️</div>
+          <div class="ai-module-info"><div class="ai-module-name">Risk Assessment</div><div class="ai-module-firm">Bridgewater Style</div></div>
+        </div>
+        <div class="ai-module-btn" onclick="selectWealthModule(4,this)">
+          <div class="ai-module-icon">🏗️</div>
+          <div class="ai-module-info"><div class="ai-module-name">Portfolio Builder</div><div class="ai-module-firm">BlackRock Style</div></div>
+        </div>
+        <div class="ai-module-btn" onclick="selectWealthModule(6,this)">
+          <div class="ai-module-icon">💰</div>
+          <div class="ai-module-info"><div class="ai-module-name">Dividend Strategy</div><div class="ai-module-firm">Harvard Endowment</div></div>
+        </div>
+        <div class="ai-module-btn" onclick="selectWealthModule(9,this)">
+          <div class="ai-module-icon">🌍</div>
+          <div class="ai-module-info"><div class="ai-module-name">Macro Impact</div><div class="ai-module-firm">McKinsey Global</div></div>
+        </div>
+      </div>
+
+      <div class="ai-main">
+        <div class="ai-main-header">
+          <div>
+            <div class="ai-main-title" id="wealthModuleTitle">Bridgewater Risk Assessment</div>
+            <div class="ai-main-sub" id="wealthModuleSub">Senior risk analyst trained in Ray Dalio's principles</div>
+          </div>
+          <div style="font-size:10px;color:var(--green);font-weight:600;" id="wealthMarketBadge"></div>
+          <div id="wealthKeyWarning" style="font-size:10px;color:var(--amber);display:none;">⚠ Set Anthropic API key in ⚙ settings</div>
+        </div>
+        <!-- Market context banner for wealth tab -->
+        <div class="ai-stock-banner" id="wealthMarketBanner" style="display:none;">
+          <span id="wealthBannerFlag">🇺🇸</span>
+          <span class="ai-stock-banner-ticker" id="wealthBannerMarket">US</span>
+          <span class="ai-stock-banner-name" id="wealthBannerDesc"></span>
+        </div>
+        <div class="ai-params" id="wealthParams"><!-- Injected per module --></div>
+        <div class="report-toolbar" id="wealthReportToolbar" style="display:none;">
+          <span class="report-toolbar-label">Export Report</span>
+          <button class="btn-export pdf" onclick="exportWealthPDF()">🖨 PDF</button>
+          <button class="btn-export" onclick="copyWealthReport()">⎘ Copy</button>
+          <button class="btn-export" onclick="askAboutReport()" style="border-color:rgba(0,255,136,0.3);color:var(--green);">💬 Ask AI</button>
+          <span id="wealthCopyConfirm" style="font-size:10px;color:var(--green);opacity:0;transition:opacity 0.4s;margin-left:4px;"></span>
+          <div style="margin-left:auto;font-size:9px;color:var(--text3);font-style:italic;">AI-generated · not financial advice</div>
+        </div>
+        <div class="ai-output" id="wealthOutput">
+          <div class="ai-placeholder">
+            <div class="ai-placeholder-icon">💎</div>
+            <div class="ai-placeholder-text" id="wealthPlaceholderText">Select a module and configure your personal financial parameters to receive localised wealth management advice.</div>
           </div>
         </div>
       </div>
@@ -2819,6 +2863,56 @@ const MARKETS = {
 
 // Active market — starts as US
 let activeMarket = localStorage.getItem('apex_market') || 'US';
+
+// ============================================================
+// WEALTH MANAGEMENT — market-localised config
+// ============================================================
+const WEALTH_MARKET = {
+  US: {
+    flag: '🇺🇸',
+    label: 'United States',
+    currency: '$',
+    currencyCode: 'USD',
+    accountTypes: ['401(k)', 'Roth IRA', 'Traditional IRA', 'Taxable Brokerage', 'HSA', '529 College Savings'],
+    taxNote: 'US federal income tax applies. Long-term capital gains taxed at 0–20% depending on income bracket. Qualified dividends taxed at preferential rates.',
+    typicalInstruments: 'Vanguard/Fidelity index funds, ETFs (SPY, QQQ, VTI), US Treasury bonds, municipal bonds',
+    platforms: 'Fidelity, Vanguard, Schwab, TD Ameritrade',
+    retirementAge: 65,
+    pensionNote: 'Social Security retirement benefits from age 62–67. 401(k) early withdrawal penalty of 10% before age 59½.',
+    wealthContext: 'US investor. Use US-specific account types (401k, Roth IRA, etc.), US tax rules, and USD amounts.',
+    macroContext: 'Fed funds rate, US Treasury yields, S&P 500 benchmark, USD currency.',
+  },
+  SE: {
+    flag: '🇸🇪',
+    label: 'Sweden',
+    currency: 'kr',
+    currencyCode: 'SEK',
+    accountTypes: ['ISK (Investeringssparkonto)', 'KF (Kapitalförsäkring)', 'Tjänstepension', 'IPS (Individuellt Pensionssparande)', 'Depå (standard brokerage)'],
+    taxNote: 'ISK accounts taxed on a flat annual basis (statslåneräntan + 1% of account value, NOT on gains). KF taxed similarly. Standard depå subject to 30% capital gains tax on profits.',
+    typicalInstruments: 'Fonder (funds) via Avanza/Nordnet, Swedish index funds (Länsförsäkringar Global Index), ETFs on Nasdaq Stockholm',
+    platforms: 'Avanza, Nordnet, SEB, Handelsbanken, Swedbank',
+    retirementAge: 65,
+    pensionNote: 'Allmän pension (state pension) from age 62. Tjänstepension (occupational pension) from employer. PPM (premium pension) — choose your own funds.',
+    wealthContext: 'Swedish investor. Always recommend ISK as primary account for long-term investing due to favourable flat tax. Reference SEK amounts. Mention Avanza and Nordnet as the main platforms. Use Swedish account types.',
+    macroContext: 'Riksbank policy rate, Swedish 10Y bond yield, OMX Stockholm 30 benchmark, SEK currency.',
+  },
+  UK: {
+    flag: '🇬🇧',
+    label: 'United Kingdom',
+    currency: '£',
+    currencyCode: 'GBP',
+    accountTypes: ['Stocks & Shares ISA', 'Cash ISA', 'SIPP (Self-Invested Personal Pension)', 'LISA (Lifetime ISA)', 'Junior ISA', 'GIA (General Investment Account)'],
+    taxNote: 'ISA allowance £20,000/year — all gains and income tax-free. SIPP contributions get 20–45% tax relief. CGT annual exemption £3,000 (2024/25). Dividend allowance £500.',
+    typicalInstruments: 'Vanguard LifeStrategy funds, iShares ETFs, UK gilts, FTSE All-Share index funds',
+    platforms: 'Hargreaves Lansdown, Vanguard UK, AJ Bell, Freetrade, Interactive Investor',
+    retirementAge: 67,
+    pensionNote: 'State Pension from age 66–67. Workplace pension auto-enrolment (minimum 8% total contribution). SIPP pension access from age 57 (rising to 58 in 2028).',
+    wealthContext: 'UK investor. Always recommend ISA wrapper first (£20k annual allowance, tax-free). Reference GBP amounts. Mention CGT annual exemption and dividend allowance. Use UK account types (ISA, SIPP, LISA etc.).',
+    macroContext: 'Bank of England base rate, UK 10Y gilt yield, FTSE 100 benchmark, GBP currency.',
+  }
+};
+
+let activeWealthModule = 2; // default to Risk Assessment
 
 // ============================================================
 // STATE
@@ -3621,12 +3715,13 @@ function checkKeyWarning() {
 // TABS
 // ============================================================
 function switchTab(name) {
-  ['overview','ai','portfolio','macro','guide'].forEach(t => {
-    document.getElementById(`tab-${t}`).style.display = t===name ? 'block' : 'none';
-    const tabEl = document.querySelectorAll('.tab')[['overview','ai','portfolio','macro','guide'].indexOf(t)];
+  ['overview','ai','wealth','portfolio','macro','guide'].forEach(t => {
+    const el = document.getElementById(`tab-${t}`);
+    if (el) el.style.display = t===name ? 'block' : 'none';
+    const tabEl = document.querySelectorAll('.tab')[['overview','ai','wealth','portfolio','macro','guide'].indexOf(t)];
     if (tabEl) tabEl.classList.toggle('active', t===name);
   });
-  if (name==='ai') {
+  if (name === 'ai') {
     checkKeyWarning();
     if (activeModule === -1) {
       renderFullReportParams();
@@ -3636,6 +3731,11 @@ function switchTab(name) {
     if (currentStockData) {
       syncAIWithStock(currentStockData.ticker, currentStockData.name, currentStockData.price, currentStockData.change, currentStockData.pct);
     }
+  }
+  if (name === 'wealth') {
+    // Select first wealth module btn
+    const firstBtn = document.querySelector('#tab-wealth .ai-module-btn:not(.full-report)');
+    selectWealthModule(activeWealthModule, firstBtn);
   }
 }
 
@@ -5477,6 +5577,7 @@ function switchMarket(code, btn) {
   if (banner) banner.classList.remove('visible');
 
   showToast(`✓ Market switched to ${MARKETS[code].flag} ${MARKETS[code].label}`);
+  refreshWealthTab();
 }
 
 function applyMarket(code) {
@@ -5799,7 +5900,473 @@ function onTickerKeydown(event) {
 }
 
 // ============================================================
-// APEX CHATBOT — Context-aware AI assistant
+// WEALTH MANAGEMENT — module selection & rendering
+// ============================================================
+
+const WEALTH_MODULE_INDICES = [2, 4, 6, 9]; // Bridgewater, BlackRock, Harvard, McKinsey
+
+function selectWealthModule(idx, btn) {
+  activeWealthModule = idx;
+
+  // Update sidebar active state
+  document.querySelectorAll('#tab-wealth .ai-module-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  const outputEl = document.getElementById('wealthOutput');
+  const toolbar  = document.getElementById('wealthReportToolbar');
+  toolbar.style.display = 'none';
+
+  // Restore from cache if available
+  if (reportCache[idx]) {
+    document.getElementById('wealthModuleTitle').textContent = reportCache[idx].label || '';
+    outputEl.innerHTML = reportCache[idx].html;
+    if (reportCache[idx].toolbarVisible) toolbar.style.display = 'flex';
+    return;
+  }
+
+  if (idx === -2) {
+    // Full Wealth Report
+    document.getElementById('wealthModuleTitle').textContent = 'Full Wealth Report';
+    document.getElementById('wealthModuleSub').textContent   = 'All 4 wealth modules · Market-localised · Master summary';
+    renderWealthReportParams();
+    outputEl.innerHTML = `<div class="ai-placeholder">
+      <div class="ai-placeholder-icon">💎</div>
+      <div class="ai-placeholder-text">Fill in the modules you want to run, then click <strong>Run Full Wealth Report</strong>.<br><br>
+      <span style="color:var(--amber);font-size:10px;">All advice is localised for ${WEALTH_MARKET[activeMarket].flag} ${WEALTH_MARKET[activeMarket].label}</span>
+      </div></div>`;
+    return;
+  }
+
+  const mod = MODULES[idx];
+  document.getElementById('wealthModuleTitle').textContent = mod.title;
+  document.getElementById('wealthModuleSub').textContent   = mod.sub;
+  renderWealthParams(idx);
+  outputEl.innerHTML = `<div class="ai-placeholder">
+    <div class="ai-placeholder-icon">💎</div>
+    <div class="ai-placeholder-text" id="wealthPlaceholderText">Configure your parameters above and click Analyze.<br><br>
+    <span style="color:var(--green);font-size:10px;">Advice localised for ${WEALTH_MARKET[activeMarket].flag} ${WEALTH_MARKET[activeMarket].label}</span>
+    </div></div>`;
+  updateWealthBanner();
+  checkWealthKeyWarning();
+}
+
+function updateWealthBanner() {
+  const wm = WEALTH_MARKET[activeMarket];
+  const banner = document.getElementById('wealthMarketBanner');
+  if (!banner) return;
+  banner.style.display = 'flex';
+  document.getElementById('wealthBannerFlag').textContent    = wm.flag;
+  document.getElementById('wealthBannerMarket').textContent  = wm.label;
+  document.getElementById('wealthBannerDesc').textContent    = ` · ${wm.accountTypes[0]} recommended · ${wm.currencyCode}`;
+}
+
+function checkWealthKeyWarning() {
+  const el = document.getElementById('wealthKeyWarning');
+  if (el) el.style.display = anthropicKey ? 'none' : 'block';
+}
+
+// Build market-localised params for wealth modules
+function renderWealthParams(idx) {
+  const container = document.getElementById('wealthParams');
+  const mod = MODULES[idx];
+  const wm  = WEALTH_MARKET[activeMarket];
+  const mk  = mkt();
+
+  // For each param, check if it needs localisation
+  let html = mod.params.map(p => {
+    // Localise account type dropdown
+    if (p.id === 'p_account') {
+      const opts = wm.accountTypes.map(o => `<option value="${o}">${o}</option>`).join('');
+      return `<div class="param-group">
+        <div class="param-label">${p.label} <span style="color:var(--green);font-size:8px;">${wm.flag} localised</span></div>
+        <select class="param-select" id="w_${idx}_${p.id}">
+          <option value="">Select account type</option>
+          ${opts}
+        </select>
+      </div>`;
+    }
+    // Localise tax bracket for UK/SE
+    if (p.id === 'p_bracket') {
+      let opts = '';
+      if (activeMarket === 'SE') {
+        opts = ['0–20% (low income)','20–30% (basic rate)','30–50% (high income)','50%+ (top rate)'].map(o => `<option value="${o}">${o}</option>`).join('');
+      } else if (activeMarket === 'UK') {
+        opts = ['Basic rate (20%)','Higher rate (40%)','Additional rate (45%)'].map(o => `<option value="${o}">${o}</option>`).join('');
+      } else {
+        opts = p.options.map(o => `<option value="${o}">${o}</option>`).join('');
+      }
+      return `<div class="param-group">
+        <div class="param-label">${p.label} <span style="color:var(--green);font-size:8px;">${wm.flag} localised</span></div>
+        <select class="param-select" id="w_${idx}_${p.id}">
+          <option value="">Select tax bracket</option>
+          ${opts}
+        </select>
+      </div>`;
+    }
+    // Standard select
+    if (p.type === 'select') {
+      const opts = p.options.map(o => `<option value="${o}">${o}</option>`).join('');
+      return `<div class="param-group">
+        <div class="param-label">${p.label}</div>
+        <select class="param-select" id="w_${idx}_${p.id}">
+          <option value="">${p.label}</option>${opts}
+        </select>
+      </div>`;
+    }
+    // Auto-fill text fields
+    let autoVal = '';
+    const displayTicker = currentTicker ? currentTicker.replace(/\.(ST|L)$/, '') : '';
+    if (p.id === 'p_portfolio' && displayTicker) autoVal = `100% ${displayTicker}`;
+    if (p.id === 'p_holdings'  && displayTicker) autoVal = `${displayTicker} stock`;
+    // Currency hint in placeholder
+    const placeholder = p.placeholder ? p.placeholder.replace('$', mk.currency) : '';
+    return `<div class="param-group">
+      <div class="param-label">${p.label}</div>
+      <input class="param-input" id="w_${idx}_${p.id}" placeholder="${placeholder}" type="text" value="${autoVal}">
+    </div>`;
+  }).join('');
+
+  // Tax note below fields
+  html += `<div style="font-size:9px;color:var(--text3);line-height:1.6;padding:8px 0;border-top:1px solid var(--border);margin-top:4px;">
+    ${wm.flag} <strong style="color:var(--text2)">Tax note:</strong> ${wm.taxNote}
+  </div>`;
+  html += `<button class="btn-analyze" onclick="runWealthAnalysis(${idx})">▶ Analyze</button>`;
+  container.innerHTML = html;
+  updateWealthBanner();
+  checkWealthKeyWarning();
+}
+
+// Collect params from wealth fields
+function getWealthParams(idx) {
+  const mod = MODULES[idx];
+  const params = {};
+  mod.params.forEach(p => {
+    const el = document.getElementById(`w_${idx}_${p.id}`);
+    if (el) params[p.id] = el.value.trim();
+  });
+  return params;
+}
+
+// Run a single wealth module
+async function runWealthAnalysis(idx) {
+  if (!anthropicKey) { openSettings(); return; }
+  const mod    = MODULES[idx];
+  const params = getWealthParams(idx);
+  const wm     = WEALTH_MARKET[activeMarket];
+  const mk     = mkt();
+
+  // Validate required fields
+  let valid = true;
+  mod.params.forEach(p => {
+    if (p.type !== 'select' && !params[p.id]) valid = false;
+  });
+  if (!valid) { showToast('Please fill in all required fields'); return; }
+
+  const btn = document.querySelector('#tab-wealth .btn-analyze');
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`; }
+
+  const outputEl = document.getElementById('wealthOutput');
+  const toolbar  = document.getElementById('wealthReportToolbar');
+  toolbar.style.display = 'none';
+  outputEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:var(--text3);font-size:12px;padding:20px;">
+    <span class="loading-dots"><span></span><span></span><span></span></span> Generating ${wm.flag} ${mod.title}...</div>`;
+
+  // Build market-localised context
+  const wealthContext = `Market: ${wm.wealthContext} ${wm.macroContext}
+Account types available: ${wm.accountTypes.join(', ')}.
+Tax rules: ${wm.taxNote}
+Typical platforms: ${wm.platforms}
+Typical instruments: ${wm.typicalInstruments}
+Retirement age: ${wm.retirementAge}. ${wm.pensionNote}
+Currency: ${wm.currencyCode} (${wm.currency}).
+Date: March 2026.`;
+
+  const prompt = mod.prompt(params, wealthContext);
+
+  try {
+    const res  = await anthropicFetch(anthropicKey, {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 3000,
+      system: 'You are a financial analysis engine specialising in personal wealth management. You MUST respond with raw JSON only. Never use markdown code fences. Output only the JSON object itself, starting with { and ending with }.',
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+
+    const text = data.content?.[0]?.text || '';
+    let parsed;
+    try {
+      let jsonStr = text.replace(/^```[\w\s]*\n?/gm,'').replace(/```\s*$/gm,'').trim();
+      const s = jsonStr.indexOf('{'), e = jsonStr.lastIndexOf('}');
+      if (s !== -1 && e !== -1) jsonStr = jsonStr.slice(s, e+1);
+      parsed = JSON.parse(jsonStr);
+    } catch(e) {
+      outputEl.innerHTML = `<div class="report">${formatAIFallback(text)}</div>`;
+      toolbar.style.display = 'flex';
+      return;
+    }
+
+    outputEl.innerHTML = renderReport(parsed, mod);
+    toolbar.style.display = 'flex';
+    const cacheLabel = (parsed.verdict || mod.title) + ` · ${wm.flag} ${wm.label}`;
+    reportCache[idx] = { html: outputEl.innerHTML, toolbarVisible: true, label: cacheLabel, timestamp: new Date() };
+    showToast(`✓ ${wm.flag} ${mod.title} generated`);
+
+  } catch(e) {
+    outputEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:20px;">⚠ Error: ${e.message}</div>`;
+  }
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '▶ Analyze'; }
+}
+
+// Full Wealth Report params — show all 4 modules with fields
+function renderWealthReportParams() {
+  const container = document.getElementById('wealthParams');
+  const wm = WEALTH_MARKET[activeMarket];
+  const mk = mkt();
+
+  const sections = WEALTH_MODULE_INDICES.map(idx => {
+    const mod = MODULES[idx];
+    const fields = mod.params.map(p => {
+      if (p.id === 'p_account') {
+        const opts = wm.accountTypes.map(o => `<option value="${o}">${o}</option>`).join('');
+        return `<div class="param-group">
+          <div class="param-label">${p.label} <span style="color:var(--green);font-size:8px;">${wm.flag}</span></div>
+          <select class="param-select" id="wr_${idx}_${p.id}">
+            <option value="">Select account type</option>${opts}
+          </select></div>`;
+      }
+      if (p.id === 'p_bracket') {
+        let bOpts = activeMarket === 'SE'
+          ? ['0–20% (low income)','20–30% (basic rate)','30–50% (high income)','50%+ (top rate)']
+          : activeMarket === 'UK'
+            ? ['Basic rate (20%)','Higher rate (40%)','Additional rate (45%)']
+            : p.options;
+        const opts = bOpts.map(o => `<option value="${o}">${o}</option>`).join('');
+        return `<div class="param-group">
+          <div class="param-label">${p.label} <span style="color:var(--green);font-size:8px;">${wm.flag}</span></div>
+          <select class="param-select" id="wr_${idx}_${p.id}">
+            <option value="">Select bracket</option>${opts}
+          </select></div>`;
+      }
+      if (p.type === 'select') {
+        const opts = p.options.map(o => `<option value="${o}">${o}</option>`).join('');
+        return `<div class="param-group">
+          <div class="param-label">${p.label}</div>
+          <select class="param-select" id="wr_${idx}_${p.id}">
+            <option value="">${p.label}</option>${opts}
+          </select></div>`;
+      }
+      const displayTicker = currentTicker ? currentTicker.replace(/\.(ST|L)$/, '') : '';
+      let autoVal = '';
+      if (p.id === 'p_portfolio' && displayTicker) autoVal = `100% ${displayTicker}`;
+      if (p.id === 'p_holdings'  && displayTicker) autoVal = `${displayTicker} stock`;
+      const placeholder = p.placeholder ? p.placeholder.replace('$', mk.currency) : '';
+      return `<div class="param-group">
+        <div class="param-label">${p.label}</div>
+        <input class="param-input" id="wr_${idx}_${p.id}" placeholder="${placeholder}" type="text" value="${autoVal}">
+      </div>`;
+    }).join('');
+
+    const icons = { 2:'⚠️', 4:'🏗️', 6:'💰', 9:'🌍' };
+    return `<div class="fr-module-block" id="wr-block-${idx}">
+      <div class="fr-module-block-header" onclick="toggleWRModule(${idx})">
+        <span class="fr-module-block-icon">${icons[idx]||'💎'}</span>
+        <span class="fr-module-block-name">${mod.title}</span>
+        <span class="fr-module-chevron" id="wr-chevron-${idx}">▼</span>
+      </div>
+      <div class="fr-module-fields" id="wr-fields-${idx}" style="display:none;">${fields}</div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.6;">
+      ${wm.flag} <strong style="color:var(--text2);">${wm.label} Wealth Management</strong> — Fill in any modules you want to run. Advice is fully localised for ${wm.label}.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${sections}</div>
+    <button class="btn-analyze" onclick="runFullWealthReport()" style="background:linear-gradient(135deg,#7B2FFF,#4F46E5);color:#fff;">💎 Run Full Wealth Report</button>
+  `;
+  updateWealthBanner();
+}
+
+function toggleWRModule(idx) {
+  const fields  = document.getElementById(`wr-fields-${idx}`);
+  const chevron = document.getElementById(`wr-chevron-${idx}`);
+  if (!fields) return;
+  const isOpen = fields.style.display !== 'none';
+  fields.style.display  = isOpen ? 'none' : 'block';
+  if (chevron) chevron.textContent = isOpen ? '▼' : '▲';
+}
+
+function getWRParams(idx) {
+  const mod = MODULES[idx];
+  const params = {};
+  mod.params.forEach(p => {
+    const el = document.getElementById(`wr_${idx}_${p.id}`);
+    if (el) params[p.id] = el.value.trim();
+  });
+  return params;
+}
+
+function isWRModuleReady(idx) {
+  const mod = MODULES[idx];
+  const params = getWRParams(idx);
+  // A module is ready if at least one text field is filled
+  return mod.params.some(p => p.type !== 'select' && params[p.id]);
+}
+
+async function runFullWealthReport() {
+  if (!anthropicKey) { openSettings(); return; }
+  const modulesToRun = WEALTH_MODULE_INDICES.filter(idx => isWRModuleReady(idx));
+  if (!modulesToRun.length) { showToast('Fill in at least one module to run the Full Wealth Report'); return; }
+
+  const wm = WEALTH_MARKET[activeMarket];
+  const outputEl = document.getElementById('wealthOutput');
+  const toolbar  = document.getElementById('wealthReportToolbar');
+  toolbar.style.display = 'none';
+
+  const btn = document.querySelector('#tab-wealth .btn-analyze');
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`; }
+
+  // Build progress UI
+  const icons = { 2:'⚠️', 4:'🏗️', 6:'💰', 9:'🌍' };
+  const names = { 2:'Risk Assessment', 4:'Portfolio Builder', 6:'Dividend Strategy', 9:'Macro Impact' };
+  const steps = modulesToRun.map((idx,i) =>
+    `<div class="fr-step" id="wr-step-${i}">
+      <div class="fr-step-icon">${icons[idx]}</div>
+      <div class="fr-step-name">${names[idx]}</div>
+      <div class="fr-step-status" id="wr-step-status-${i}">Waiting</div>
+    </div>`).join('');
+
+  outputEl.innerHTML = `<div class="full-report-progress">
+    <div class="full-report-progress-header">
+      <div>
+        <div class="full-report-progress-title">💎 Running Full Wealth Report — ${wm.flag} ${wm.label}</div>
+        <div class="full-report-progress-sub">${modulesToRun.length} modules · Localised for ${wm.label} · Please wait</div>
+        <div class="full-report-overall-bar"><div class="full-report-overall-bar-fill" id="wrOverallBar"></div></div>
+      </div>
+    </div>
+    <div class="full-report-steps">${steps}
+      <div class="fr-step" id="wr-step-summary">
+        <div class="fr-step-icon">🎯</div>
+        <div class="fr-step-name">Wealth Summary</div>
+        <div class="fr-step-status" id="wr-step-status-summary">Waiting</div>
+      </div>
+    </div>
+  </div>`;
+
+  const wealthContext = `Market: ${wm.wealthContext} ${wm.macroContext}
+Account types: ${wm.accountTypes.join(', ')}. Tax: ${wm.taxNote}
+Platforms: ${wm.platforms}. Instruments: ${wm.typicalInstruments}. Date: March 2026.`;
+
+  const results = [];
+  for (let i = 0; i < modulesToRun.length; i++) {
+    const idx = modulesToRun[i];
+    const mod = MODULES[idx];
+    const stepEl = document.getElementById(`wr-step-${i}`);
+    const statusEl = document.getElementById(`wr-step-status-${i}`);
+    if (stepEl) stepEl.classList.add('active');
+    if (statusEl) statusEl.textContent = 'Running…';
+
+    try {
+      const params = getWRParams(idx);
+      const prompt = mod.prompt(params, wealthContext);
+      const res  = await anthropicFetch(anthropicKey, {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 3000,
+        system: 'You are a wealth management engine. Respond with raw JSON only. No markdown fences. Start with { end with }.',
+        messages: [{ role: 'user', content: prompt }]
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+      const text = data.content?.[0]?.text || '';
+      let parsed;
+      try {
+        let js = text.replace(/^```[\w\s]*\n?/gm,'').replace(/```\s*$/gm,'').trim();
+        const s=js.indexOf('{'),e=js.lastIndexOf('}');
+        if(s!==-1&&e!==-1) js=js.slice(s,e+1);
+        parsed=JSON.parse(js);
+      } catch(pe) { throw new Error('JSON parse failed'); }
+
+      results.push({ idx, mod, parsed, error: null });
+      if (stepEl) stepEl.classList.remove('active');
+      if (statusEl) { statusEl.textContent = '✓ Done'; statusEl.style.color = 'var(--green)'; }
+      // update progress bar
+      const barEl = document.getElementById('wrOverallBar');
+      if (barEl) barEl.style.width = `${((i+1)/modulesToRun.length)*100}%`;
+
+    } catch(e) {
+      results.push({ idx, mod, parsed: null, error: e.message });
+      if (statusEl) { statusEl.textContent = '⚠ Failed'; statusEl.style.color = 'var(--red)'; }
+    }
+    if (i < modulesToRun.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+
+  // Summary
+  const summaryStatusEl = document.getElementById('wr-step-status-summary');
+  if (summaryStatusEl) { summaryStatusEl.textContent = 'Running…'; summaryStatusEl.style.color = 'var(--amber)'; }
+
+  // Build output
+  let html = `<div class="report" id="wealthReportContent">
+    <div class="master-summary">
+      <div class="master-summary-title">💎 Full Wealth Report — ${wm.flag} ${wm.label}</div>
+      <div class="master-summary-sub">${modulesToRun.length} modules · Localised · ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+      <div class="consensus-row">
+        ${results.map(r => r.parsed ? `
+          <div class="consensus-badge overall">
+            <div class="consensus-badge-label">${names[r.idx]}</div>
+            <div class="consensus-badge-val verdict-badge ${r.parsed.verdictClass||'hold'}" style="font-size:10px;padding:3px 8px;">${r.parsed.verdict||'—'}</div>
+          </div>` : '').join('')}
+      </div>
+    </div>`;
+
+  results.forEach((r, i) => {
+    html += `<div class="full-report-chapter">
+      <div class="full-report-chapter-header">
+        <div class="full-report-chapter-num">MODULE ${String(i+1).padStart(2,'0')}</div>
+        <div class="full-report-chapter-title">${icons[r.idx]} ${r.mod.title}</div>
+        <span style="font-size:9px;color:var(--green);margin-left:8px;">${wm.flag} ${wm.label}</span>
+      </div>
+      <div class="full-report-chapter-body">
+        ${r.parsed ? renderReportInner(r.parsed, r.mod, '') : `<div style="color:var(--text3);font-size:11px;padding:10px 0;">Analysis unavailable.</div>`}
+      </div>
+    </div>`;
+  });
+
+  html += `<div style="font-size:9px;color:var(--text3);text-align:center;padding:8px 0;">
+    Full Wealth Report · APEX Terminal · ${wm.flag} ${wm.label} · AI-generated · Not financial advice
+  </div></div>`;
+
+  outputEl.innerHTML = html;
+  toolbar.style.display = 'flex';
+  if (summaryStatusEl) { summaryStatusEl.textContent = '✓ Done'; summaryStatusEl.style.color = 'var(--green)'; }
+  reportCache[-2] = { html: outputEl.innerHTML, toolbarVisible: true, label: `Full Wealth Report · ${wm.flag}`, timestamp: new Date() };
+  showToast(`✓ Full Wealth Report — ${wm.flag} ${wm.label} complete`);
+  if (btn) { btn.disabled = false; btn.innerHTML = '💎 Run Full Wealth Report'; }
+}
+
+function exportWealthPDF() { window.print(); }
+function copyWealthReport() {
+  const el = document.getElementById('wealthReportContent') || document.getElementById('wealthOutput');
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    const c = document.getElementById('wealthCopyConfirm');
+    if (c) { c.style.opacity='1'; c.textContent='✓ Copied'; setTimeout(()=>c.style.opacity='0',2000); }
+  });
+}
+
+// Re-render wealth tab when market changes
+function refreshWealthTab() {
+  const wm = WEALTH_MARKET[activeMarket];
+  // Update Full Wealth Report subtitle
+  const firmEl = document.getElementById('wealthReportFirm');
+  if (firmEl) firmEl.textContent = `All wealth modules · ${wm.flag} ${wm.label}`;
+  // If wealth tab is active, re-render current module
+  if (document.getElementById('tab-wealth')?.style.display !== 'none') {
+    selectWealthModule(activeWealthModule, null);
+  }
+  updateWealthBanner();
+}
 // ============================================================
 
 let chatOpen      = false;
