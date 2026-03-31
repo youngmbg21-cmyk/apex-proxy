@@ -2932,6 +2932,7 @@ const reportCache = {};
 
 // ── Full Report persistent state ──
 let frLastParams   = null;   // legacy — kept for retry compatibility
+let activeTab      = 'overview'; // tracks which tab user is currently on
 let frLastResults  = [];     // array of { fm, mod, parsed, error } — mutable for retries
 let frRunning      = false;  // guard against concurrent runs
 
@@ -3715,6 +3716,7 @@ function checkKeyWarning() {
 // TABS
 // ============================================================
 function switchTab(name) {
+  activeTab = name;
   ['overview','ai','wealth','portfolio','macro','guide'].forEach(t => {
     const el = document.getElementById(`tab-${t}`);
     if (el) el.style.display = t===name ? 'block' : 'none';
@@ -3791,44 +3793,189 @@ function toTradingViewSymbol(ticker) {
 }
 
 function loadTradingViewChart(ticker, range) {
-  const cfg = TV_RANGE_MAP[range] || TV_RANGE_MAP['1D'];
   const wrap = document.getElementById('chartWrap');
   const label = document.getElementById('chartTickerLabel');
   if (label) label.textContent = ticker.replace(/\.(ST|L)$/, '');
 
+  // Skip TradingView entirely for SE and UK — free widget has restricted exchange access
+  // Go straight to Chart.js which uses our own proxy with no restrictions
+  if (activeMarket === 'SE' || activeMarket === 'UK') {
+    loadChartJsFallback(ticker, range);
+    return;
+  }
+
+  // US stocks — try TradingView first, fall back to Chart.js if it fails
+  const cfg = TV_RANGE_MAP[range] || TV_RANGE_MAP['1D'];
   const containerId = `tv_${ticker}_${range}_${Date.now()}`;
 
-  const doCreate = () => {
+  const tryTradingView = () => {
     wrap.innerHTML = `<div id="${containerId}" style="height:100%;width:100%"></div>`;
-    const tvTimezones = { US: 'America/New_York', SE: 'Europe/Stockholm', UK: 'Europe/London' };
-    const tvTz = tvTimezones[activeMarket] || 'America/New_York';
+
+    // Timeout: if TradingView hasn't loaded in 4 seconds, use Chart.js
+    const tvTimeout = setTimeout(() => {
+      const iframe = wrap.querySelector('iframe');
+      if (!iframe || iframe.clientHeight < 10) {
+        loadChartJsFallback(ticker, range);
+      }
+    }, 4000);
+
     try {
       new TradingView.widget({
-        autosize: true, symbol: toTradingViewSymbol(ticker),
-        interval: cfg.interval, range: cfg.range,
-        timezone: tvTz, theme: 'dark',
-        style: '1', locale: 'en',
+        autosize: true,
+        symbol: toTradingViewSymbol(ticker),
+        interval: cfg.interval,
+        range: cfg.range,
+        timezone: 'America/New_York',
+        theme: 'dark',
+        style: '1',
+        locale: 'en',
         backgroundColor: '#0D1117',
-        hide_top_toolbar: false, hide_legend: true,
-        save_image: false, container_id: containerId,
+        hide_top_toolbar: false,
+        hide_legend: true,
+        save_image: false,
+        container_id: containerId,
+        onChartReady: () => clearTimeout(tvTimeout),
       });
     } catch(e) {
-      wrap.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red);font-size:11px;padding:20px;text-align:center;">Chart error: ${e.message}</div>`;
+      clearTimeout(tvTimeout);
+      loadChartJsFallback(ticker, range);
     }
   };
 
   if (window.TradingView) {
-    doCreate();
+    tryTradingView();
   } else {
-    wrap.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:12px;gap:8px;"><span class="loading-dots"><span></span><span></span><span></span></span> Loading TradingView chart...</div>`;
+    wrap.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:12px;gap:8px;"><span class="loading-dots"><span></span><span></span><span></span></span> Loading chart...</div>`;
     const s = document.createElement('script');
     s.src = 'https://s3.tradingview.com/tv.js';
-    s.onload = doCreate;
-    s.onerror = () => {
-      wrap.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:11px;text-align:center;padding:20px;">Chart requires internet connection.<br>Open file in your browser.</div>`;
-    };
+    s.onload = tryTradingView;
+    s.onerror = () => loadChartJsFallback(ticker, range);
     document.head.appendChild(s);
   }
+}
+
+// ── Chart.js fallback — draws OHLC from our proxy ──
+async function loadChartJsFallback(ticker, range) {
+  const wrap = document.getElementById('chartWrap');
+  wrap.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:12px;gap:8px;"><span class="loading-dots"><span></span><span></span><span></span></span> Loading chart data...</div>`;
+
+  // Map range to Yahoo Finance interval/range params
+  const rangeMap = {
+    '1D':  { interval: '5m',  range: '1d'  },
+    '1W':  { interval: '30m', range: '5d'  },
+    '1M':  { interval: '1d',  range: '1mo' },
+    '3M':  { interval: '1d',  range: '3mo' },
+    '6M':  { interval: '1d',  range: '6mo' },
+    '1Y':  { interval: '1wk', range: '1y'  },
+    '3Y':  { interval: '1wk', range: '3y'  },
+    '5Y':  { interval: '1mo', range: '5y'  },
+    'ALL': { interval: '1mo', range: 'max' },
+  };
+  const cfg = rangeMap[range] || rangeMap['1M'];
+
+  try {
+    const base = PROXY_BASE.replace(/\/$/, '');
+    const url = `${base}/.netlify/functions/quote?symbol=${encodeURIComponent(ticker)}&interval=${cfg.interval}&range=${cfg.range}`;
+    // Use the chart endpoint directly for OHLCV history
+    const chartUrl = `${base}/.netlify/functions/chart?symbol=${encodeURIComponent(ticker)}&interval=${cfg.interval}&range=${cfg.range}`;
+    const res  = await fetch(chartUrl);
+    const data = await res.json();
+
+    if (!data.timestamps || !data.timestamps.length) {
+      throw new Error('No chart data');
+    }
+
+    renderChartJsOHLC(wrap, data, ticker, range);
+
+  } catch(e) {
+    // Final fallback — simple line chart from quote data
+    renderChartJsSimple(wrap, ticker, range);
+  }
+}
+
+function renderChartJsOHLC(wrap, data, ticker, range) {
+  const mk = mkt();
+  wrap.innerHTML = `
+    <div style="position:relative;height:100%;width:100%;padding:10px;">
+      <div style="position:absolute;top:10px;left:14px;font-size:9px;color:var(--text3);letter-spacing:0.1em;">
+        ${ticker.replace(/\.(ST|L)$/, '')} · ${range} · via Yahoo Finance
+      </div>
+      <canvas id="apexChartCanvas" style="width:100%;height:100%;"></canvas>
+    </div>`;
+
+  const ctx = document.getElementById('apexChartCanvas')?.getContext('2d');
+  if (!ctx) return;
+
+  const labels = data.timestamps.map(t => {
+    const d = new Date(t * 1000);
+    if (range === '1D') return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    if (['1W','1M'].includes(range)) return d.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+    return d.toLocaleDateString('en-GB', {month:'short', year:'2-digit'});
+  });
+
+  const closes = data.closes || [];
+  const firstClose = closes.find(c => c != null) || 0;
+  const lastClose  = closes.filter(c => c != null).pop() || 0;
+  const isUp = lastClose >= firstClose;
+  const lineColor = isUp ? '#00FF88' : '#FF4560';
+  const fillColor = isUp ? 'rgba(0,255,136,0.08)' : 'rgba(255,69,96,0.08)';
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: closes,
+        borderColor: lineColor,
+        backgroundColor: fillColor,
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.1,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#131920',
+          borderColor: 'rgba(0,255,136,0.2)',
+          borderWidth: 1,
+          titleColor: '#8FA3BC',
+          bodyColor: '#E2EAF4',
+          callbacks: {
+            label: (ctx) => ` ${mk.currency}${Number(ctx.raw).toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#4A6080', font: { size: 9 }, maxTicksLimit: 8 },
+          grid:  { color: 'rgba(255,255,255,0.04)' },
+        },
+        y: {
+          position: 'right',
+          ticks: {
+            color: '#4A6080',
+            font: { size: 9 },
+            callback: (v) => `${mk.currency}${Number(v).toFixed(2)}`
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        }
+      }
+    }
+  });
+}
+
+async function renderChartJsSimple(wrap, ticker, range) {
+  // Minimal fallback using current price only
+  wrap.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:8px;">
+    <div style="font-size:11px;color:var(--text3);">Chart temporarily unavailable</div>
+    <div style="font-size:10px;color:var(--text3);">Price data shown in left panel</div>
+  </div>`;
 }
 
 function changeRange(range, el) {
@@ -6380,12 +6527,25 @@ let chatMessages = chatLoadHistory() || [{
 // ── Build context string from current terminal state ──
 function buildChatContext() {
   const mk = mkt();
+  const wm = WEALTH_MARKET[activeMarket];
+
+  // ── Tab label map ──
+  const tabLabels = {
+    overview: 'Overview (stock data)',
+    ai:       'AI Analysis (stock modules)',
+    wealth:   'Wealth Management',
+    portfolio:'Portfolio tracker',
+    macro:    'Macro dashboard',
+    guide:    'Guide',
+  };
+
   let ctx = `You are APEX AI, an institutional-grade financial assistant embedded in the APEX Terminal app.
 Active market: ${mk.flag} ${mk.label} (${mk.currencyCode}).
+User is currently on the: ${tabLabels[activeTab] || activeTab} tab.
 Today's date: ${new Date().toLocaleDateString('en-GB', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}.
 `;
 
-  // Loaded stock
+  // ── Loaded stock ──
   if (currentStockData && currentStockData.ticker) {
     const sd = currentStockData;
     ctx += `\nCurrently loaded stock: ${sd.ticker} (${sd.name || sd.ticker})`;
@@ -6394,7 +6554,7 @@ Today's date: ${new Date().toLocaleDateString('en-GB', {weekday:'long', year:'nu
     ctx += '.';
   }
 
-  // Portfolio
+  // ── Portfolio ──
   if (portfolio && portfolio.length) {
     const totalVal  = portfolio.reduce((s,r) => s + r.currentPrice * r.shares, 0);
     const totalCost = portfolio.reduce((s,r) => s + r.cost * r.shares, 0);
@@ -6402,23 +6562,62 @@ Today's date: ${new Date().toLocaleDateString('en-GB', {weekday:'long', year:'nu
     const gainPct   = totalCost > 0 ? (gain / totalCost * 100).toFixed(1) : 0;
     ctx += `\n\nPortfolio (${portfolio.length} positions, total ${fmtCurrency(totalVal)}, ${gain >= 0 ? '+' : ''}${fmtCurrency(gain)} / ${gain >= 0 ? '+' : ''}${gainPct}%):`;
     portfolio.forEach(r => {
-      const val  = r.currentPrice * r.shares;
-      const gl   = (r.currentPrice - r.cost) * r.shares;
+      const gl    = (r.currentPrice - r.cost) * r.shares;
       const glPct = r.cost > 0 ? ((r.currentPrice - r.cost) / r.cost * 100).toFixed(1) : 0;
       ctx += `\n  • ${r.ticker}: ${r.shares} shares @ avg ${fmtCurrency(r.cost)}, now ${fmtCurrency(r.currentPrice)} (${gl >= 0 ? '+' : ''}${fmtCurrency(gl)} / ${gl >= 0 ? '+' : ''}${glPct}%)`;
     });
   }
 
-  // Last AI report
-  const reportEl = document.getElementById('reportContent');
-  if (reportEl && reportEl.innerText && reportEl.innerText.trim().length > 50) {
-    const reportText = reportEl.innerText.replace(/\n{3,}/g, '\n\n').trim().slice(0, 4000);
-    ctx += `\n\nMost recent AI report (summarised):\n${reportText}`;
+  // ── AI Analysis report (stock modules) ──
+  const aiReportEl = document.getElementById('reportContent');
+  if (aiReportEl && aiReportEl.innerText && aiReportEl.innerText.trim().length > 50) {
+    const text = aiReportEl.innerText.replace(/\n{3,}/g, '\n\n').trim().slice(0, 3000);
+    ctx += `\n\nAI ANALYSIS REPORT (currently visible in AI Analysis tab):\n${text}`;
   }
+
+  // ── Wealth Management report ──
+  const wealthReportEl = document.getElementById('wealthReportContent');
+  if (wealthReportEl && wealthReportEl.innerText && wealthReportEl.innerText.trim().length > 50) {
+    const text = wealthReportEl.innerText.replace(/\n{3,}/g, '\n\n').trim().slice(0, 3000);
+    ctx += `\n\nWEALTH MANAGEMENT REPORT (${wm.flag} ${wm.label} localised):`;
+    ctx += `\nThis report was generated with ${wm.label}-specific account types (${wm.accountTypes.slice(0,3).join(', ')}) and tax rules.`;
+    ctx += `\nReport content:\n${text}`;
+  }
+
+  // ── Individual wealth module output (if no full report but single module ran) ──
+  if (!wealthReportEl || wealthReportEl.innerText.trim().length < 50) {
+    const wealthOutputEl = document.getElementById('wealthOutput');
+    const wealthSingleEl = wealthOutputEl?.querySelector('.report');
+    if (wealthSingleEl && wealthSingleEl.innerText.trim().length > 50) {
+      const mod = MODULES[activeWealthModule];
+      const text = wealthSingleEl.innerText.replace(/\n{3,}/g, '\n\n').trim().slice(0, 3000);
+      ctx += `\n\nWEALTH MODULE REPORT — ${mod?.title || 'Wealth Analysis'} (${wm.flag} ${wm.label}):`;
+      ctx += `\nReport content:\n${text}`;
+    }
+  }
+
+  // ── Active tab specific context hints ──
+  if (activeTab === 'wealth') {
+    ctx += `\n\nThe user is in the Wealth Management tab.`;
+    ctx += ` This tab provides ${wm.label}-localised advice using account types: ${wm.accountTypes.join(', ')}.`;
+    ctx += ` Key tax rule: ${wm.taxNote}`;
+    ctx += ` Typical platforms in ${wm.label}: ${wm.platforms}.`;
+  } else if (activeTab === 'ai') {
+    ctx += `\n\nThe user is in the AI Analysis tab viewing stock analysis modules.`;
+    if (activeModule >= 0) {
+      ctx += ` Currently selected module: ${MODULES[activeModule]?.title || 'Unknown'}.`;
+    }
+  } else if (activeTab === 'portfolio') {
+    ctx += `\n\nThe user is viewing their Portfolio tracker.`;
+  } else if (activeTab === 'macro') {
+    ctx += `\n\nThe user is viewing the Macro dashboard for ${mk.flag} ${mk.label}.`;
+  }
+
+  ctx += `\n\nIMPORTANT: You have access to the actual report content above. When the user asks about "the report", "what this means", or "explain this" — refer to the specific numbers, verdicts and findings in the report content, not generic descriptions. Always cite specific figures from the report.`;
 
   ctx += `\n\nAnswer concisely and insightfully. Use bullet points for lists. Reference specific numbers from the context when relevant. If asked about something not in the context, use your general financial knowledge but note it's not from the current session data.`;
 
-  // Mode-specific instruction
+  // ── Mode instruction ──
   if (chatMode === 'simple') {
     ctx += `\n\nIMPORTANT — SIMPLE MODE: The user wants plain English explanations. Follow these rules strictly:
 - No financial jargon without immediate plain-English explanation in brackets. E.g. "P/E ratio (how much you pay for each £1 of company earnings)"
@@ -6492,17 +6691,38 @@ function updateChatPills() {
   if (!pillsEl) return;
   const pills = [];
   const mk = mkt();
+
+  // Active market
   pills.push(`${mk.flag} ${mk.code}`);
+
+  // Active tab
+  const tabNames = { overview:'Overview', ai:'AI Analysis', wealth:'Wealth Mgmt', portfolio:'Portfolio', macro:'Macro' };
+  if (tabNames[activeTab]) pills.push(`📍 ${tabNames[activeTab]}`);
+
+  // Loaded stock
   if (currentStockData?.ticker) {
     pills.push(currentStockData.ticker.replace(/\.(ST|L)$/, ''));
   }
+
+  // Portfolio
   if (portfolio?.length) {
     pills.push(`Portfolio: ${portfolio.length} stocks`);
   }
-  const reportEl = document.getElementById('reportContent');
-  if (reportEl?.innerText?.trim().length > 50) {
-    pills.push('Report loaded');
+
+  // AI Analysis report
+  const aiReportEl = document.getElementById('reportContent');
+  if (aiReportEl?.innerText?.trim().length > 50) {
+    pills.push('📊 AI Report loaded');
   }
+
+  // Wealth report
+  const wealthReportEl = document.getElementById('wealthReportContent');
+  const wealthOutputEl = document.getElementById('wealthOutput');
+  const wealthSingleEl = wealthOutputEl?.querySelector('.report');
+  if (wealthReportEl?.innerText?.trim().length > 50 || wealthSingleEl?.innerText?.trim().length > 50) {
+    pills.push('💎 Wealth Report loaded');
+  }
+
   pillsEl.innerHTML = pills.map(p => `<span class="chat-pill">${p}</span>`).join('');
 }
 
@@ -6513,16 +6733,40 @@ function updateChatSuggestions() {
   el.style.display = 'flex';
 
   const suggestions = [];
-  if (currentStockData?.ticker) {
-    const t = currentStockData.ticker.replace(/\.(ST|L)$/, '');
-    suggestions.push(`Summarise the analysis for ${t}`);
-    suggestions.push(`What are the key risks for ${t}?`);
-    suggestions.push(`Is ${t} a buy right now?`);
+
+  // Tab-specific suggestions
+  if (activeTab === 'wealth') {
+    const wm = WEALTH_MARKET[activeMarket];
+    suggestions.push(`What account type should I use in ${wm.label}?`);
+    suggestions.push('Explain my wealth report in simple terms');
+    suggestions.push(`What are the tax advantages of ${wm.accountTypes[0]}?`);
+  } else if (activeTab === 'ai') {
+    if (currentStockData?.ticker) {
+      const t = currentStockData.ticker.replace(/\.(ST|L)$/, '');
+      suggestions.push(`Summarise the analysis for ${t}`);
+      suggestions.push(`What are the key risks for ${t}?`);
+      suggestions.push(`Is ${t} a buy right now?`);
+    } else {
+      suggestions.push('What stocks should I look at today?');
+      suggestions.push('Explain P/E ratio in simple terms');
+      suggestions.push('What makes a stock undervalued?');
+    }
+  } else if (activeTab === 'portfolio') {
+    suggestions.push('How is my portfolio performing?');
+    suggestions.push('Which position has the most risk?');
+    suggestions.push('Should I rebalance my portfolio?');
+  } else if (activeTab === 'macro') {
+    const mk = mkt();
+    suggestions.push(`What does the current ${mk.label} macro environment mean for my investments?`);
+    suggestions.push('Should I be worried about inflation?');
   } else {
-    suggestions.push('What stocks should I look at today?');
-    suggestions.push('Explain P/E ratio in simple terms');
+    if (currentStockData?.ticker) {
+      const t = currentStockData.ticker.replace(/\.(ST|L)$/, '');
+      suggestions.push(`Tell me about ${t}`);
+    }
+    suggestions.push('What should I be looking at today?');
+    suggestions.push('Explain how to use this terminal');
   }
-  if (portfolio?.length) suggestions.push('How is my portfolio performing?');
 
   el.innerHTML = suggestions.slice(0,3).map(s =>
     `<button class="chat-suggest-btn" onclick="useSuggestion(this)">${s}</button>`
@@ -6676,8 +6920,13 @@ function clearChat() {
 function askAboutReport() {
   openChat();
   setTimeout(() => {
-    document.getElementById('chatInput').value = 'Summarise the key findings from the report I just ran and give me your top 3 takeaways.';
-    document.getElementById('chatInput').focus();
+    const input = document.getElementById('chatInput');
+    if (activeTab === 'wealth') {
+      input.value = 'Summarise the key findings from the Wealth Management report I just ran and tell me what I should do next.';
+    } else {
+      input.value = 'Summarise the key findings from the report I just ran and give me your top 3 takeaways.';
+    }
+    input.focus();
   }, 200);
 }
 
