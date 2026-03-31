@@ -3847,8 +3847,10 @@ function loadTradingViewChart(ticker, range) {
 
   const tvSymbol = toTradingViewSymbol(ticker);
 
-  // If no valid TradingView symbol (e.g. UK stock not dual-listed) → Chart.js directly
-  if (!tvSymbol) {
+  // Skip TradingView for SE and UK — use Chart.js directly from our proxy
+  // SE: TradingView symbols inconsistent across Swedish stocks
+  // UK: LSE restricted on free TradingView widget
+  if (activeMarket === 'SE' || activeMarket === 'UK' || !tvSymbol) {
     loadChartJsFallback(ticker, range);
     return;
   }
@@ -3906,7 +3908,7 @@ async function loadChartJsFallback(ticker, range) {
   const wrap = document.getElementById('chartWrap');
   wrap.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:12px;gap:8px;"><span class="loading-dots"><span></span><span></span><span></span></span> Loading chart data...</div>`;
 
-  // Map range to Yahoo Finance interval/range params
+  // Always fetch 1Y data so we can calculate 52W High/Low regardless of selected range
   const rangeMap = {
     '1D':  { interval: '5m',  range: '1d'  },
     '1W':  { interval: '30m', range: '5d'  },
@@ -3922,20 +3924,48 @@ async function loadChartJsFallback(ticker, range) {
 
   try {
     const base = PROXY_BASE.replace(/\/$/, '');
-    const url = `${base}/.netlify/functions/quote?symbol=${encodeURIComponent(ticker)}&interval=${cfg.interval}&range=${cfg.range}`;
-    // Use the chart endpoint directly for OHLCV history
-    const chartUrl = `${base}/.netlify/functions/chart?symbol=${encodeURIComponent(ticker)}&interval=${cfg.interval}&range=${cfg.range}`;
-    const res  = await fetch(chartUrl);
-    const data = await res.json();
 
-    if (!data.timestamps || !data.timestamps.length) {
-      throw new Error('No chart data');
+    // Fetch display range data + 1Y data in parallel
+    const [displayRes, yearRes] = await Promise.all([
+      fetch(`${base}/.netlify/functions/chart?symbol=${encodeURIComponent(ticker)}&interval=${cfg.interval}&range=${cfg.range}`),
+      // Only fetch 1Y separately if we're not already on 1Y/3Y/5Y/ALL
+      ['1Y','3Y','5Y','ALL'].includes(range)
+        ? Promise.resolve(null)
+        : fetch(`${base}/.netlify/functions/chart?symbol=${encodeURIComponent(ticker)}&interval=1wk&range=1y`)
+    ]);
+
+    const data = await displayRes.json();
+    if (!data.timestamps || !data.timestamps.length) throw new Error('No chart data');
+
+    // ── Calculate 52W High/Low ──
+    let yearData = data; // use display data if it covers 1Y+
+    if (yearRes) {
+      try { yearData = await yearRes.json(); } catch(e) {}
+    }
+
+    const validHighs = (yearData.highs  || []).filter(x => x != null && x > 0);
+    const validLows  = (yearData.lows   || []).filter(x => x != null && x > 0);
+    const validVols  = (yearData.volumes|| []).filter(x => x != null && x > 0);
+
+    if (validHighs.length) {
+      const high52 = Math.max(...validHighs);
+      const low52  = Math.min(...validLows);
+      const s52High = document.getElementById('s52High');
+      const s52Low  = document.getElementById('s52Low');
+      if (s52High && s52High.textContent === '--') s52High.textContent = fmtCurrency(high52);
+      if (s52Low  && s52Low.textContent  === '--') s52Low.textContent  = fmtCurrency(low52);
+    }
+
+    // Update avg volume if still blank
+    if (validVols.length) {
+      const avgVol = Math.round(validVols.reduce((a,b) => a+b, 0) / validVols.length);
+      const sAvgVol = document.getElementById('sAvgVol');
+      if (sAvgVol && sAvgVol.textContent === '--') sAvgVol.textContent = formatVolume(avgVol);
     }
 
     renderChartJsOHLC(wrap, data, ticker, range);
 
   } catch(e) {
-    // Final fallback — simple line chart from quote data
     renderChartJsSimple(wrap, ticker, range);
   }
 }
@@ -6146,15 +6176,18 @@ function selectWealthModule(idx, btn) {
   }
 
   if (idx === -2) {
-    // Full Wealth Report
+    // Full Wealth Report — show status panel reading from individual module fields
     document.getElementById('wealthModuleTitle').textContent = 'Full Wealth Report';
-    document.getElementById('wealthModuleSub').textContent   = 'All 4 wealth modules · Market-localised · Master summary';
-    renderWealthReportParams();
-    outputEl.innerHTML = `<div class="ai-placeholder">
-      <div class="ai-placeholder-icon">💎</div>
-      <div class="ai-placeholder-text">Fill in the modules you want to run, then click <strong>Run Full Wealth Report</strong>.<br><br>
-      <span style="color:var(--amber);font-size:10px;">All advice is localised for ${WEALTH_MARKET[activeMarket].flag} ${WEALTH_MARKET[activeMarket].label}</span>
-      </div></div>`;
+    document.getElementById('wealthModuleSub').textContent   = 'Reads from modules you filled in the sidebar · Market-localised · Master summary';
+    renderWealthReportParams(); // shows status of each module + run button
+    // Don't clear output — preserve any cached report
+    if (!reportCache[-2]) {
+      outputEl.innerHTML = `<div class="ai-placeholder">
+        <div class="ai-placeholder-icon">💎</div>
+        <div class="ai-placeholder-text">Fill in individual modules using the sidebar on the left, then click <strong>Run Full Wealth Report</strong>.<br><br>
+        <span style="color:var(--amber);font-size:10px;">All advice is localised for ${WEALTH_MARKET[activeMarket].flag} ${WEALTH_MARKET[activeMarket].label}</span>
+        </div></div>`;
+    }
     return;
   }
 
@@ -6342,98 +6375,71 @@ Date: March 2026.`;
 
 // Full Wealth Report params — show all 4 modules with fields
 function renderWealthReportParams() {
+// Full Wealth Report — reads from the individual module panels (w_${idx}_*)
+// No duplicate input forms — uses what's already filled in the sidebar modules
+function renderWealthReportParams() {
   const container = document.getElementById('wealthParams');
   const wm = WEALTH_MARKET[activeMarket];
-  const mk = mkt();
+  const icons = { 2:'⚠️', 4:'🏗️', 6:'💰', 9:'🌍' };
+  const names = { 2:'Risk Assessment', 4:'Portfolio Builder', 6:'Dividend Strategy', 9:'Macro Impact' };
 
-  const sections = WEALTH_MODULE_INDICES.map(idx => {
-    const mod = MODULES[idx];
-    const fields = mod.params.map(p => {
-      if (p.id === 'p_account') {
-        const opts = wm.accountTypes.map(o => `<option value="${o}">${o}</option>`).join('');
-        return `<div class="param-group">
-          <div class="param-label">${p.label} <span style="color:var(--green);font-size:8px;">${wm.flag}</span></div>
-          <select class="param-select" id="wr_${idx}_${p.id}">
-            <option value="">Select account type</option>${opts}
-          </select></div>`;
-      }
-      if (p.id === 'p_bracket') {
-        let bOpts = activeMarket === 'SE'
-          ? ['0–20% (low income)','20–30% (basic rate)','30–50% (high income)','50%+ (top rate)']
-          : activeMarket === 'UK'
-            ? ['Basic rate (20%)','Higher rate (40%)','Additional rate (45%)']
-            : p.options;
-        const opts = bOpts.map(o => `<option value="${o}">${o}</option>`).join('');
-        return `<div class="param-group">
-          <div class="param-label">${p.label} <span style="color:var(--green);font-size:8px;">${wm.flag}</span></div>
-          <select class="param-select" id="wr_${idx}_${p.id}">
-            <option value="">Select bracket</option>${opts}
-          </select></div>`;
-      }
-      if (p.type === 'select') {
-        const opts = p.options.map(o => `<option value="${o}">${o}</option>`).join('');
-        return `<div class="param-group">
-          <div class="param-label">${p.label}</div>
-          <select class="param-select" id="wr_${idx}_${p.id}">
-            <option value="">${p.label}</option>${opts}
-          </select></div>`;
-      }
-      const displayTicker = currentTicker ? currentTicker.replace(/\.(ST|L)$/, '') : '';
-      let autoVal = '';
-      if (p.id === 'p_portfolio' && displayTicker) autoVal = `100% ${displayTicker}`;
-      if (p.id === 'p_holdings'  && displayTicker) autoVal = `${displayTicker} stock`;
-      const placeholder = p.placeholder ? p.placeholder.replace('$', mk.currency) : '';
-      return `<div class="param-group">
-        <div class="param-label">${p.label}</div>
-        <input class="param-input" id="wr_${idx}_${p.id}" placeholder="${placeholder}" type="text" value="${autoVal}">
-      </div>`;
-    }).join('');
+  // Build status rows based on what's already filled in individual modules
+  const rows = WEALTH_MODULE_INDICES.map(idx => {
+    const ready = isWRModuleReady(idx);
+    const mod   = MODULES[idx];
 
-    const icons = { 2:'⚠️', 4:'🏗️', 6:'💰', 9:'🌍' };
-    return `<div class="fr-module-block" id="wr-block-${idx}">
-      <div class="fr-module-block-header" onclick="toggleWRModule(${idx})">
-        <span class="fr-module-block-icon">${icons[idx]||'💎'}</span>
-        <span class="fr-module-block-name">${mod.title}</span>
-        <span class="fr-module-chevron" id="wr-chevron-${idx}">▼</span>
+    // Show a preview of what's filled
+    const params = getWealthParams(idx);
+    const filledFields = mod.params
+      .filter(p => p.type !== 'select' && params[p.id])
+      .map(p => `<span style="color:var(--text2)">${params[p.id]}</span>`)
+      .join(' · ');
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid ${ready ? 'rgba(0,255,136,0.25)' : 'var(--border)'};border-radius:5px;">
+      <span style="font-size:14px;">${icons[idx]}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:600;color:var(--text);">${names[idx]}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${filledFields || '<span style="color:var(--text3)">Not filled — click module in sidebar to add data</span>'}
+        </div>
       </div>
-      <div class="fr-module-fields" id="wr-fields-${idx}" style="display:none;">${fields}</div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;color:${ready ? 'var(--green)' : 'var(--text3)'};">
+        ${ready ? '✓ WILL RUN' : '○ SKIP'}
+      </div>
     </div>`;
   }).join('');
 
+  const readyCount = WEALTH_MODULE_INDICES.filter(idx => isWRModuleReady(idx)).length;
+
   container.innerHTML = `
     <div style="font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.6;">
-      ${wm.flag} <strong style="color:var(--text2);">${wm.label} Wealth Management</strong> — Fill in any modules you want to run. Advice is fully localised for ${wm.label}.
+      ${wm.flag} <strong style="color:var(--text2);">${wm.label}</strong> — Fill in individual modules using the sidebar, then run the full report below.
+      Modules with data will run automatically.
     </div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${sections}</div>
-    <button class="btn-analyze" onclick="runFullWealthReport()" style="background:linear-gradient(135deg,#7B2FFF,#4F46E5);color:#fff;">💎 Run Full Wealth Report</button>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${rows}</div>
+    ${readyCount === 0
+      ? `<div style="font-size:10px;color:var(--amber);margin-bottom:10px;">⚠ Fill in at least one module using the sidebar to run the Full Wealth Report.</div>`
+      : `<div style="font-size:10px;color:var(--green);margin-bottom:10px;">✓ ${readyCount} module${readyCount > 1 ? 's' : ''} ready to run.</div>`
+    }
+    <button class="btn-analyze" onclick="runFullWealthReport()" style="background:linear-gradient(135deg,#7B2FFF,#4F46E5);color:#fff;" ${readyCount === 0 ? 'disabled' : ''}>💎 Run Full Wealth Report</button>
   `;
   updateWealthBanner();
 }
 
-function toggleWRModule(idx) {
-  const fields  = document.getElementById(`wr-fields-${idx}`);
-  const chevron = document.getElementById(`wr-chevron-${idx}`);
-  if (!fields) return;
-  const isOpen = fields.style.display !== 'none';
-  fields.style.display  = isOpen ? 'none' : 'block';
-  if (chevron) chevron.textContent = isOpen ? '▼' : '▲';
-}
-
+// Read params from individual module panel (w_${idx}_*) — the single source of truth
 function getWRParams(idx) {
-  const mod = MODULES[idx];
-  const params = {};
-  mod.params.forEach(p => {
-    const el = document.getElementById(`wr_${idx}_${p.id}`);
-    if (el) params[p.id] = el.value.trim();
-  });
-  return params;
+  return getWealthParams(idx); // reuse the same function — same field IDs
 }
 
 function isWRModuleReady(idx) {
-  const mod = MODULES[idx];
-  const params = getWRParams(idx);
-  // A module is ready if at least one text field is filled
-  return mod.params.some(p => p.type !== 'select' && params[p.id]);
+  return isWealthModuleReady(idx);
+}
+
+// Check if a wealth module has enough data to run
+function isWealthModuleReady(idx) {
+  const mod    = MODULES[idx];
+  const params = getWealthParams(idx);
+  return mod.params.some(p => p.type !== 'select' && params[p.id] && params[p.id].length > 0);
 }
 
 async function runFullWealthReport() {
