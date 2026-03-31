@@ -3864,7 +3864,7 @@ function loadTradingViewChart(ticker, range) {
     const tvTimeout = setTimeout(() => {
       const iframe = wrap.querySelector('iframe');
       if (!iframe || iframe.clientHeight < 10) loadChartJsFallback(ticker, range);
-    }, 4000);
+    }, 1500);
 
     try {
       new TradingView.widget({
