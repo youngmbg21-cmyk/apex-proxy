@@ -4062,10 +4062,80 @@ function changeRange(range, el) {
 }
 
 // ============================================================
-// FMP — Financial Modeling Prep (official API, browser-direct)
-// New API uses /stable/ base (not /api/v3/ which is legacy-only)
-// Free tier: 250 calls/day — covers US, UK, Sweden
+// YAHOO BROWSER-DIRECT — fundamentals fetch bypassing Netlify
+// Calls Yahoo v7 directly from the browser — avoids cloud IP blocks
+// Yahoo allows browser CORS; it only blocks server/cloud IPs
 // ============================================================
+async function fetchYahooBrowserDirect(ticker) {
+  const fields = [
+    'shortName','longName','sector','industry','exchange','currency',
+    'marketCap','trailingPE','forwardPE','epsTrailingTwelveMonths',
+    'beta','fiftyTwoWeekHigh','fiftyTwoWeekLow',
+    'averageDailyVolume10Day','trailingAnnualDividendYield',
+    'trailingAnnualDividendRate','targetMeanPrice','recommendationKey',
+  ].join(',');
+
+  // Try fetching crumb first (needed for v7 since 2023)
+  // Browser requests get cookies automatically — much more reliable than server
+  let crumb = null;
+  try {
+    const crumbRes = await fetch('https://query1.finance.yahoo.com/v1/test/csrfToken', {
+      credentials: 'include',
+      headers: { 'Accept': 'text/plain' }
+    });
+    if (crumbRes.ok) crumb = (await crumbRes.text()).trim();
+  } catch(e) {}
+
+  // Also try query2 if query1 failed
+  if (!crumb) {
+    try {
+      const crumbRes2 = await fetch('https://query2.finance.yahoo.com/v1/test/csrfToken', {
+        credentials: 'include',
+        headers: { 'Accept': 'text/plain' }
+      });
+      if (crumbRes2.ok) crumb = (await crumbRes2.text()).trim();
+    } catch(e) {}
+  }
+
+  const crumbParam = crumb ? `&crumb=${encodeURIComponent(crumb)}` : '';
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(ticker)}&fields=${fields}${crumbParam}`;
+
+  const res = await fetch(url, {
+    credentials: 'include',
+    headers: { 'Accept': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`Yahoo browser HTTP ${res.status}`);
+
+  const data = await res.json();
+  const r = data?.quoteResponse?.result?.[0];
+  if (!r) throw new Error('Yahoo browser: no data');
+
+  const v = (key) => {
+    const val = r[key];
+    if (val === null || val === undefined) return null;
+    return typeof val === 'object' && 'raw' in val ? val.raw : val;
+  };
+
+  return {
+    name:         r.shortName    || r.longName    || ticker,
+    sector:       r.sector       || '',
+    industry:     r.industry     || '',
+    exchange:     r.exchange     || '',
+    currency:     r.currency     || 'USD',
+    marketCap:    v('marketCap'),
+    peRatio:      v('trailingPE') || v('forwardPE'),
+    eps:          v('epsTrailingTwelveMonths'),
+    beta:         v('beta'),
+    week52High:   v('fiftyTwoWeekHigh'),
+    week52Low:    v('fiftyTwoWeekLow'),
+    avgVolume10d: v('averageDailyVolume10Day'),
+    divYield:     v('trailingAnnualDividendYield'),
+    divRate:      v('trailingAnnualDividendRate'),
+    analystTarget:  v('targetMeanPrice'),
+    recommendation: r.recommendationKey || '',
+    _source: 'Yahoo-Browser',
+  };
+}
 async function fetchFMPSummary(ticker, key) {
   // FMP uses different ticker formats for international stocks
   // VOLV-B.ST → VOLVB.ST (removes dash), AZN.L stays as-is
@@ -4184,18 +4254,30 @@ async function loadStock() {
 
     syncAIWithStock(displayTicker, quote.name || displayTicker, cur, chg, pct);
 
-    // Step 2: Summary stats — FMP first (official, browser-direct), Yahoo fallback
+    // Step 2: Summary stats — three-tier fallback
+    // Tier 1: FMP (official API, browser-direct) — if key set
+    // Tier 2: Yahoo browser-direct — bypasses Netlify IP blocks, works for all markets
+    // Tier 3: Yahoo proxy (Netlify) — last resort, unreliable for non-US
     try {
       let stats = null;
 
-      // ── Try FMP first if key is available ──
+      // ── Tier 1: FMP if key available ──
       if (fmpKey) {
         try {
           stats = await fetchFMPSummary(ticker, fmpKey);
+          // FMP may return empty data for non-US stocks — treat as failure
+          if (!stats.marketCap && !stats.peRatio && !stats.beta) stats = null;
         } catch(e) { stats = null; }
       }
 
-      // ── Fall back to Yahoo proxy if FMP unavailable or failed ──
+      // ── Tier 2: Yahoo browser-direct (avoids Netlify IP blocking) ──
+      if (!stats) {
+        try {
+          stats = await fetchYahooBrowserDirect(ticker);
+        } catch(e) { stats = null; }
+      }
+
+      // ── Tier 3: Yahoo via Netlify proxy (last resort) ──
       if (!stats) {
         stats = await yhFetch('summary', ticker);
       }
