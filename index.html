@@ -3668,14 +3668,16 @@ async function testFMPModal() {
   if (!key) { setStatus('fmpStatus', false, 'Enter your FMP key first'); return; }
   setStatus('fmpStatus', true, 'Testing...');
   try {
-    const res  = await fetch(`https://financialmodelingprep.com/api/v3/profile/AAPL?apikey=${key}`);
+    const res  = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=AAPL&apikey=${key}`);
     const data = await res.json();
-    if (res.ok && data?.[0]?.symbol) {
-      setStatus('fmpStatus', true, `Connected ✓  AAPL: ${data[0].companyName}, P/E: ${data[0].pe?.toFixed(1) || 'n/a'}`);
-    } else if (data?.['Error Message']) {
-      setStatus('fmpStatus', false, `Invalid key — ${data['Error Message']}`);
+    const arr  = Array.isArray(data) ? data : (data.data || []);
+    if (res.ok && arr[0]?.symbol) {
+      const d = arr[0];
+      setStatus('fmpStatus', true, `Connected ✓  ${d.companyName} · P/E: ${d.pe?.toFixed(1) || 'n/a'} · Market Cap: $${(d.mktCap/1e9).toFixed(0)}B`);
+    } else if (data?.message) {
+      setStatus('fmpStatus', false, `Error — ${data.message}`);
     } else {
-      setStatus('fmpStatus', false, `HTTP ${res.status} — check your key`);
+      setStatus('fmpStatus', false, `HTTP ${res.status} — check your key at financialmodelingprep.com`);
     }
   } catch(e) {
     setStatus('fmpStatus', false, `Error: ${e.message}`);
@@ -4031,57 +4033,54 @@ function changeRange(range, el) {
 
 // ============================================================
 // FMP — Financial Modeling Prep (official API, browser-direct)
+// New API uses /stable/ base (not /api/v3/ which is legacy-only)
 // Free tier: 250 calls/day — covers US, UK, Sweden
 // ============================================================
 async function fetchFMPSummary(ticker, key) {
   // FMP uses different ticker formats for international stocks
-  // VOLV-B.ST → VOLVB.ST for FMP (removes dash)
-  // AZN.L stays as AZN.L
+  // VOLV-B.ST → VOLVB.ST (removes dash), AZN.L stays as-is
   const fmpTicker = ticker.replace(/^([A-Z]+)-([A-Z])(\.[A-Z]+)$/, '$1$2$3');
+  const base = 'https://financialmodelingprep.com/stable';
 
-  const res = await fetch(
-    `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(fmpTicker)}?apikey=${key}`
-  );
+  // Fetch profile (marketCap, PE, beta, sector, 52w range, dividend)
+  const res = await fetch(`${base}/profile?symbol=${encodeURIComponent(fmpTicker)}&apikey=${key}`);
   if (!res.ok) throw new Error(`FMP HTTP ${res.status}`);
   const data = await res.json();
 
-  if (!data || !data[0]) throw new Error('FMP: no data');
-  const d = data[0];
-  if (d['Error Message']) throw new Error(d['Error Message']);
+  // New API returns array directly or object with data array
+  const arr = Array.isArray(data) ? data : (data.data || []);
+  if (!arr.length) throw new Error('FMP: no data');
+  const d = arr[0];
+  if (d?.message?.includes('Error') || d?.['Error Message']) {
+    throw new Error(d.message || d['Error Message']);
+  }
 
-  // Also fetch key metrics for EPS and analyst target
-  let eps = null, analystTarget = null, week52High = null, week52Low = null;
-  try {
-    const metricsRes = await fetch(
-      `https://financialmodelingprep.com/api/v3/key-metrics/${encodeURIComponent(fmpTicker)}?limit=1&apikey=${key}`
-    );
-    if (metricsRes.ok) {
-      const metricsData = await metricsRes.json();
-      const m = metricsData?.[0];
-      if (m) eps = m.netIncomePerShare || null;
+  // Parse 52w range from "low - high" string
+  let week52High = null, week52Low = null;
+  if (d.range) {
+    const parts = d.range.split(' - ');
+    if (parts.length === 2) {
+      week52Low  = parseFloat(parts[0]) || null;
+      week52High = parseFloat(parts[1]) || null;
     }
-  } catch(e) {}
-
-  // FMP profile endpoint has 52w range
-  week52High = d.range ? parseFloat(d.range.split('-')[1]) : null;
-  week52Low  = d.range ? parseFloat(d.range.split('-')[0]) : null;
+  }
 
   return {
-    name:         d.companyName    || ticker,
-    sector:       d.sector         || '',
-    industry:     d.industry       || '',
+    name:         d.companyName       || ticker,
+    sector:       d.sector            || '',
+    industry:     d.industry          || '',
     exchange:     d.exchangeShortName || d.exchange || '',
-    currency:     d.currency       || 'USD',
-    marketCap:    d.mktCap         || null,
-    peRatio:      d.pe             || null,
-    eps:          d.eps            || eps || null,
-    beta:         d.beta           || null,
+    currency:     d.currency          || 'USD',
+    marketCap:    d.mktCap            || null,
+    peRatio:      d.pe                || null,
+    eps:          d.eps               || null,
+    beta:         d.beta              || null,
     week52High,
     week52Low,
-    avgVolume10d: d.volAvg          || null,
+    avgVolume10d: d.volAvg            || null,
     divYield:     d.lastDiv && d.price ? (d.lastDiv / d.price) : null,
-    divRate:      d.lastDiv        || null,
-    analystTarget: d.dcfDiff ? (d.price + d.dcfDiff) : null, // DCF-based estimate
+    divRate:      d.lastDiv           || null,
+    analystTarget: null, // not in profile endpoint
     recommendation: '',
     _source: 'FMP',
   };
