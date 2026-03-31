@@ -3775,21 +3775,18 @@ const TV_RANGE_MAP = {
 };
 
 function toTradingViewSymbol(ticker) {
-  // Convert Yahoo Finance ticker format to TradingView format
-  // Yahoo: VOLV-B.ST → TradingView: OMX:VOLVB
-  // Yahoo: AZN.L     → TradingView: LSE:AZN
-  // Yahoo: AAPL      → TradingView: NASDAQ:AAPL (TradingView resolves US automatically)
   if (ticker.endsWith('.ST')) {
-    // Swedish: strip .ST, convert dash to nothing for TradingView OMX
-    const base = ticker.replace('.ST', '').replace('-', '');
-    return `OMX:${base}`;
+    // Swedish Nasdaq Stockholm — TradingView uses NASDAQ: prefix
+    // VOLV-B.ST → NASDAQ:VOLVB
+    const base = ticker.replace('.ST', '').replace(/-/g, '');
+    return `NASDAQ:${base}`;
   }
   if (ticker.endsWith('.L')) {
-    // UK: strip .L, use LSE exchange
+    // London Stock Exchange
     const base = ticker.replace('.L', '');
     return `LSE:${base}`;
   }
-  // US: return as-is, TradingView resolves it
+  // US stocks — return as-is
   return ticker;
 }
 
