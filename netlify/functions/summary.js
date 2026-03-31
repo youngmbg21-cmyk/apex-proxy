@@ -9,7 +9,6 @@ function get(url) {
         'Accept-Language': 'en-US,en;q=0.9',
       }
     }, (res) => {
-      // Follow redirects
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return get(res.headers.location).then(resolve).catch(reject);
       }
@@ -34,7 +33,6 @@ exports.handler = async (event) => {
   const symbol = (event.queryStringParameters?.symbol || '').trim().toUpperCase();
   if (!symbol) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Missing symbol' }) };
 
-  // Helper to safely extract .raw or direct value
   const v = (obj, key) => {
     if (!obj) return null;
     const val = obj[key];
@@ -43,45 +41,46 @@ exports.handler = async (event) => {
   };
 
   try {
-    // ── Call 1: Chart endpoint (1 year) — reliable for 52w high/low, volume, open ──
-    const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`;
-    const chartResp = await get(chartUrl);
-
-    let chartMeta = {};
-    let week52High = null, week52Low = null, avgVolume = null;
-
-    if (chartResp.status === 200) {
-      try {
+    // ── Call 1: v8 chart (1 year) — most reliable for 52w high/low and volume ──
+    let week52High = null, week52Low = null, avgVolume = null, chartMeta = {};
+    try {
+      const chartResp = await get(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1wk&range=1y`
+      );
+      if (chartResp.status === 200) {
         const cd = JSON.parse(chartResp.body);
         chartMeta = cd?.chart?.result?.[0]?.meta || {};
+        const q = cd?.chart?.result?.[0]?.indicators?.quote?.[0] || {};
+        const highs   = (q.high   || []).filter(x => x != null && x > 0);
+        const lows    = (q.low    || []).filter(x => x != null && x > 0);
+        const volumes = (q.volume || []).filter(x => x != null && x > 0);
+        if (highs.length)   week52High = Math.max(...highs);
+        if (lows.length)    week52Low  = Math.min(...lows);
+        if (volumes.length) avgVolume  = Math.round(volumes.reduce((a,b)=>a+b,0)/volumes.length);
+      }
+    } catch(e) { /* chart failed */ }
 
-        // Calculate 52w high/low from historical closes
-        const closes = cd?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-        const highs   = cd?.chart?.result?.[0]?.indicators?.quote?.[0]?.high  || [];
-        const lows    = cd?.chart?.result?.[0]?.indicators?.quote?.[0]?.low   || [];
-        const volumes = cd?.chart?.result?.[0]?.indicators?.quote?.[0]?.volume || [];
+    // ── Call 2: v7 quote — highly reliable for market cap, P/E, EPS, beta ──
+    let v7Data = {};
+    try {
+      const v7Resp = await get(
+        `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&fields=shortName,longName,sector,industry,exchange,currency,marketCap,trailingPE,forwardPE,trailingEps,beta,fiftyTwoWeekHigh,fiftyTwoWeekLow,averageDailyVolume10Day,dividendYield,dividendRate,targetMeanPrice,recommendationKey,quoteType`
+      );
+      if (v7Resp.status === 200) {
+        const vd = JSON.parse(v7Resp.body);
+        v7Data = vd?.quoteResponse?.result?.[0] || {};
+      }
+    } catch(e) { /* v7 failed */ }
 
-        const validHighs = highs.filter(x => x != null && x > 0);
-        const validLows  = lows.filter(x => x != null && x > 0);
-        const validVols  = volumes.filter(x => x != null && x > 0);
-
-        if (validHighs.length) week52High = Math.max(...validHighs);
-        if (validLows.length)  week52Low  = Math.min(...validLows);
-        if (validVols.length)  avgVolume  = Math.round(validVols.reduce((a,b) => a+b, 0) / validVols.length);
-
-      } catch(e) { /* chart parse failed, continue */ }
-    }
-
-    // ── Call 2: QuoteSummary — for P/E, EPS, market cap, dividend, beta, analyst target ──
-    const summaryUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=summaryDetail,defaultKeyStatistics,financialData,price,quoteType`;
-    const summaryResp = await get(summaryUrl);
-
+    // ── Call 3: quoteSummary — fallback for any gaps ──
     let sd = {}, ks = {}, fd = {}, pr = {}, qt = {};
-
-    if (summaryResp.status === 200) {
-      try {
-        const sd_data = JSON.parse(summaryResp.body);
-        const r = sd_data?.quoteSummary?.result?.[0];
+    try {
+      const summaryResp = await get(
+        `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=summaryDetail,defaultKeyStatistics,financialData,price,quoteType`
+      );
+      if (summaryResp.status === 200) {
+        const sdata = JSON.parse(summaryResp.body);
+        const r = sdata?.quoteSummary?.result?.[0];
         if (r) {
           sd = r.summaryDetail        || {};
           ks = r.defaultKeyStatistics || {};
@@ -89,44 +88,44 @@ exports.handler = async (event) => {
           pr = r.price                || {};
           qt = r.quoteType            || {};
         }
-      } catch(e) { /* summary parse failed, use chart data only */ }
-    }
+      }
+    } catch(e) { /* summary failed */ }
 
-    // ── Build response with best available data ──
+    // ── Merge best available data — v7 takes priority ──
     const result = {
       symbol,
-      name:           v(pr,'shortName') || v(pr,'longName') || chartMeta.shortName || chartMeta.longName || symbol,
-      sector:         qt.sector    || '',
-      industry:       qt.industry  || '',
-      exchange:       qt.exchange  || v(pr,'exchangeName') || chartMeta.fullExchangeName || chartMeta.exchangeName || '',
-      currency:       v(pr,'currency') || chartMeta.currency || 'USD',
+      name:         v7Data.shortName  || v7Data.longName  || v(pr,'shortName') || chartMeta.shortName || symbol,
+      sector:       v7Data.sector     || qt.sector         || '',
+      industry:     v7Data.industry   || qt.industry       || '',
+      exchange:     v7Data.exchange   || v(pr,'exchangeName') || chartMeta.fullExchangeName || '',
+      currency:     v7Data.currency   || v(pr,'currency')  || chartMeta.currency || 'USD',
 
-      // Market cap — from price module
-      marketCap:      v(pr,'marketCap'),
+      // Market cap — v7 is most reliable
+      marketCap:    v7Data.marketCap  || v(pr,'marketCap') || null,
 
-      // P/E ratio — try multiple fields
-      peRatio:        v(sd,'trailingPE') || v(sd,'forwardPE') || null,
+      // P/E — v7 first, then summaryDetail
+      peRatio:      v7Data.trailingPE || v(sd,'trailingPE') || v7Data.forwardPE || v(sd,'forwardPE') || null,
 
       // EPS
-      eps:            v(ks,'trailingEps') || null,
+      eps:          v7Data.trailingEps || v(ks,'trailingEps') || null,
 
       // Beta
-      beta:           v(sd,'beta') || null,
+      beta:         v7Data.beta        || v(sd,'beta')     || null,
 
-      // 52-week range — prefer calculated from chart data (more reliable)
-      week52High:     week52High || v(sd,'fiftyTwoWeekHigh') || null,
-      week52Low:      week52Low  || v(sd,'fiftyTwoWeekLow')  || null,
+      // 52-week — v7 or calculated from chart
+      week52High:   v7Data.fiftyTwoWeekHigh || week52High  || v(sd,'fiftyTwoWeekHigh') || null,
+      week52Low:    v7Data.fiftyTwoWeekLow  || week52Low   || v(sd,'fiftyTwoWeekLow')  || null,
 
-      // Average volume — prefer calculated from chart data
-      avgVolume10d:   avgVolume || v(sd,'averageVolume10days') || v(sd,'averageDailyVolume10Day') || null,
+      // Volume
+      avgVolume10d: v7Data.averageDailyVolume10Day || avgVolume || v(sd,'averageVolume10days') || null,
 
       // Dividend
-      divYield:       v(sd,'dividendYield') || null,
-      divRate:        v(sd,'dividendRate')  || null,
+      divYield:     v7Data.dividendYield || v(sd,'dividendYield') || null,
+      divRate:      v7Data.dividendRate  || v(sd,'dividendRate')  || null,
 
-      // Analyst target
-      analystTarget:  v(fd,'targetMeanPrice') || null,
-      recommendation: fd.recommendationKey || '',
+      // Analyst
+      analystTarget:  v7Data.targetMeanPrice || v(fd,'targetMeanPrice') || null,
+      recommendation: v7Data.recommendationKey || fd.recommendationKey  || '',
     };
 
     return { statusCode: 200, headers: cors, body: JSON.stringify(result) };
