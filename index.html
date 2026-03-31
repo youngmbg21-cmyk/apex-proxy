@@ -2074,6 +2074,16 @@ tbody tr:last-child td { border-bottom:none; }
     <div class="ai-layout">
       <div class="ai-sidebar">
         <div style="font-size:9px;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;padding:4px 2px;margin-bottom:4px;">Stock Analysis</div>
+
+        <!-- Ticker alignment indicator -->
+        <div id="tickerAlignBar" style="display:none;margin-bottom:8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:8px 10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:9px;letter-spacing:0.1em;color:var(--text3);text-transform:uppercase;">Module Alignment</span>
+            <span id="tickerAlignStatus" style="font-size:9px;font-weight:700;letter-spacing:0.06em;"></span>
+          </div>
+          <div id="tickerAlignDots" style="display:flex;flex-direction:column;gap:3px;"></div>
+        </div>
+
         <div class="ai-module-btn full-report" onclick="selectModule(-1,this)">
           <div class="ai-module-icon">⚡</div>
           <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">Up to 6 stock modules · You choose · Master summary</div></div>
@@ -5255,6 +5265,92 @@ function renderReportInner(data, module, ticker) {
 }
 
 // ============================================================
+// TICKER ALIGNMENT INDICATOR
+// Shows at a glance whether all modules are set to the same stock
+// ============================================================
+const TICKER_MODULES = [
+  { idx: 0, name: 'Screener',   paramId: 'p_ticker' },
+  { idx: 1, name: 'DCF',        paramId: 'p_ticker' },
+  { idx: 3, name: 'Earnings',   paramId: 'p_ticker' },
+  { idx: 5, name: 'Technical',  paramId: 'p_ticker' },
+  { idx: 7, name: 'Competitive',paramId: 'p_sector'  }, // uses sector not ticker
+  { idx: 8, name: 'Pattern',    paramId: 'p_ticker' },
+];
+
+function updateTickerAlignBar() {
+  const bar    = document.getElementById('tickerAlignBar');
+  const status = document.getElementById('tickerAlignStatus');
+  const dots   = document.getElementById('tickerAlignDots');
+  if (!bar || !status || !dots) return;
+
+  // Collect what each module has set
+  const moduleValues = TICKER_MODULES.map(m => {
+    const cached = aiParamsCache[`${m.idx}_${m.paramId}`];
+    const live   = document.getElementById(m.paramId)?.value?.trim();
+    // Use live value if we're on this module, otherwise use cache
+    const val = (activeModule === m.idx ? live : cached) || '';
+    return { ...m, val: val.toUpperCase() };
+  });
+
+  // Only show the bar if at least one module has a value
+  const anyFilled = moduleValues.some(m => m.val);
+  if (!anyFilled) { bar.style.display = 'none'; return; }
+  bar.style.display = 'block';
+
+  // Find the reference ticker (most common value, or loaded stock)
+  const loadedTicker = currentTicker ? currentTicker.replace(/\.(ST|L)$/, '').toUpperCase() : '';
+  const tickerModules = moduleValues.filter(m => m.paramId === 'p_ticker' && m.val);
+  const refTicker = loadedTicker || (tickerModules[0]?.val || '');
+
+  // Check alignment — ticker modules vs ref, sector module just shows value
+  const tickerVals = tickerModules.map(m => m.val);
+  const allSame = tickerVals.length > 0 && tickerVals.every(v => v === refTicker);
+  const anyMismatch = tickerVals.some(v => v && v !== refTicker);
+
+  // Status badge
+  if (anyMismatch) {
+    status.textContent = '⚠ MISMATCH';
+    status.style.color = 'var(--amber)';
+    bar.style.borderColor = 'rgba(255,184,0,0.4)';
+  } else if (allSame && tickerVals.length > 1) {
+    status.textContent = '✓ ALIGNED';
+    status.style.color = 'var(--green)';
+    bar.style.borderColor = 'rgba(0,255,136,0.25)';
+  } else {
+    status.textContent = '';
+    bar.style.borderColor = 'var(--border)';
+  }
+
+  // Per-module dot rows
+  dots.innerHTML = moduleValues.map(m => {
+    if (!m.val) {
+      // Empty — grey dot
+      return `<div style="display:flex;align-items:center;gap:6px;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0;"></span>
+        <span style="font-size:9px;color:var(--text3);flex:1;">${m.name}</span>
+        <span style="font-size:9px;color:var(--text3);">—</span>
+      </div>`;
+    }
+    if (m.paramId === 'p_sector') {
+      // Sector field — just show value, no alignment check
+      return `<div style="display:flex;align-items:center;gap:6px;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#4A6080;flex-shrink:0;"></span>
+        <span style="font-size:9px;color:var(--text2);flex:1;">${m.name}</span>
+        <span style="font-size:9px;color:var(--text3);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${m.val}</span>
+      </div>`;
+    }
+    const match = !refTicker || m.val === refTicker;
+    const dotColor = match ? 'var(--green)' : 'var(--amber)';
+    const valColor = match ? 'var(--green)' : 'var(--amber)';
+    return `<div style="display:flex;align-items:center;gap:6px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:${dotColor};flex-shrink:0;box-shadow:0 0 4px ${dotColor};"></span>
+      <span style="font-size:9px;color:var(--text2);flex:1;">${m.name}</span>
+      <span style="font-size:9px;font-weight:700;color:${valColor};">${m.val}</span>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
 // AI ANALYSIS
 // ============================================================
 function selectModule(idx, el) {
@@ -5266,6 +5362,7 @@ function selectModule(idx, el) {
     });
   }
   activeModule = idx;
+  updateTickerAlignBar();
   document.querySelectorAll('.ai-module-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
 
@@ -5344,7 +5441,7 @@ function renderAIParams(m) {
       if (p.id === 'p_portfolio') autoVal = `100% ${t}`;
       if (p.id === 'p_holdings')  autoVal = `${t} stock`;
     }
-    return `<div class="param-group"><div class="param-label">${p.label}</div><input class="param-input" id="${p.id}" placeholder="${p.placeholder||''}" type="text" value="${autoVal}"></div>`;
+    return `<div class="param-group"><div class="param-label">${p.label}</div><input class="param-input" id="${p.id}" placeholder="${p.placeholder||''}" type="text" value="${autoVal}" oninput="updateTickerAlignBar()"></div>`;
   }).join('');
   html += `<button class="btn-analyze" onclick="runAnalysis()">▶ Analyze</button>`;
   container.innerHTML = html;
@@ -5354,6 +5451,7 @@ function renderAIParams(m) {
     if (cached) { const el = document.getElementById(p.id); if (el) el.value = cached; }
   });
   checkKeyWarning();
+  updateTickerAlignBar();
 }
 
 async function runAnalysis() {
@@ -6127,21 +6225,20 @@ function syncAIWithStock(ticker, name, price, change, pct) {
     if (el) el.value = val;
   });
 
-  // Full Report fields (all modules) — only update if field hasn't been manually edited
+  // Update aiParamsCache for all modules so params persist on switch
   if (typeof FULL_REPORT_MODULES !== 'undefined') {
     FULL_REPORT_MODULES.forEach(fm => {
       const mod = MODULES[fm.idx];
       mod.params.forEach(p => {
         if (fillMap[p.id]) {
-          const el = document.getElementById(`fr_${fm.idx}_${p.id}`);
-          if (el) {
-            el.value = fillMap[p.id];
-            updateFRModuleStatus(fm.idx);
-          }
+          aiParamsCache[`${fm.idx}_${p.id}`] = fillMap[p.id];
         }
       });
     });
   }
+
+  // Update alignment bar now that stock is loaded
+  updateTickerAlignBar();
 }
 
 // ============================================================
