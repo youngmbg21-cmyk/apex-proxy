@@ -2920,6 +2920,7 @@ const WEALTH_MARKET = {
 };
 
 let activeWealthModule = 2; // default to Risk Assessment
+const wealthParamsCache = {}; // persists typed values across module switches — key: "idx_paramId"
 
 // ============================================================
 // STATE
@@ -2933,6 +2934,7 @@ let priceChart = null;
 let donutChart = null;
 let portfolio = JSON.parse(localStorage.getItem('apex_portfolio') || '[]');
 let activeModule = 0;
+const aiParamsCache = {}; // persists typed values across module switches — key: "idx_paramId"
 
 // ── Report cache: keyed by module index (-1 = Full Report, 0–9 = individual) ──
 // Each entry: { html: string, toolbarVisible: bool, label: string, timestamp: Date }
@@ -3949,15 +3951,16 @@ async function loadChartJsFallback(ticker, range) {
       const low52  = Math.min(...validLows);
       const s52High = document.getElementById('s52High');
       const s52Low  = document.getElementById('s52Low');
-      if (s52High && s52High.textContent === '--') s52High.textContent = fmtCurrency(high52);
-      if (s52Low  && s52Low.textContent  === '--') s52Low.textContent  = fmtCurrency(low52);
+      // Update if field is still blank (either '--' or '…' loading placeholder)
+      if (s52High && (s52High.textContent === '--' || s52High.textContent === '…')) s52High.textContent = fmtCurrency(high52);
+      if (s52Low  && (s52Low.textContent  === '--' || s52Low.textContent  === '…')) s52Low.textContent  = fmtCurrency(low52);
     }
 
     // Update avg volume if still blank
     if (validVols.length) {
       const avgVol = Math.round(validVols.reduce((a,b) => a+b, 0) / validVols.length);
       const sAvgVol = document.getElementById('sAvgVol');
-      if (sAvgVol && sAvgVol.textContent === '--') sAvgVol.textContent = formatVolume(avgVol);
+      if (sAvgVol && (sAvgVol.textContent === '--' || sAvgVol.textContent === '…')) sAvgVol.textContent = formatVolume(avgVol);
     }
 
     renderChartJsOHLC(wrap, data, ticker, range);
@@ -4244,6 +4247,34 @@ async function loadStock() {
 
     showToast(`✓ ${displayTicker} — live data loaded (${m.currencyCode})`);
     loadAnnualReturns(ticker);
+
+    // ── 52W High/Low safety net — fetch from chart data if still blank ──
+    // Runs for all markets. Catches cases where FMP/Yahoo returned null for these fields.
+    const s52High = document.getElementById('s52High');
+    const s52Low  = document.getElementById('s52Low');
+    const sAvgVol = document.getElementById('sAvgVol');
+    const still52Blank = s52High && (s52High.textContent === '--' || s52High.textContent === '…');
+    const stillVolBlank = sAvgVol && (sAvgVol.textContent === '--' || sAvgVol.textContent === '…');
+
+    if ((still52Blank || stillVolBlank) && PROXY_BASE) {
+      try {
+        const base = PROXY_BASE.replace(/\/$/, '');
+        const r = await fetch(`${base}/.netlify/functions/chart?symbol=${encodeURIComponent(ticker)}&interval=1wk&range=1y`);
+        const d = await r.json();
+        const highs = (d.highs  || []).filter(x => x != null && x > 0);
+        const lows  = (d.lows   || []).filter(x => x != null && x > 0);
+        const vols  = (d.volumes|| []).filter(x => x != null && x > 0);
+        if (highs.length) {
+          if (still52Blank) {
+            s52High.textContent = fmtCurrency(Math.max(...highs));
+            s52Low.textContent  = fmtCurrency(Math.min(...lows));
+          }
+          if (stillVolBlank && vols.length) {
+            sAvgVol.textContent = formatVolume(Math.round(vols.reduce((a,b)=>a+b,0)/vols.length));
+          }
+        }
+      } catch(e) {}
+    }
 
   } catch(e) {
     console.error('loadStock error:', e);
@@ -5145,6 +5176,13 @@ function renderReportInner(data, module, ticker) {
 // AI ANALYSIS
 // ============================================================
 function selectModule(idx, el) {
+  // Save current module's param values before switching
+  if (activeModule !== null && activeModule !== -1 && MODULES[activeModule]) {
+    MODULES[activeModule].params.forEach(p => {
+      const el2 = document.getElementById(p.id);
+      if (el2) aiParamsCache[`${activeModule}_${p.id}`] = el2.value;
+    });
+  }
   activeModule = idx;
   document.querySelectorAll('.ai-module-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
@@ -5210,14 +5248,15 @@ function showCacheBadge(label, timestamp) {
 }
 
 function renderAIParams(m) {
+  const idx = MODULES.indexOf(m);
   const container = document.getElementById('aiParams');
   let html = m.params.map(p => {
     if (p.type==='select') {
       return `<div class="param-group"><div class="param-label">${p.label}</div><select class="param-select" id="${p.id}"><option value="">${p.label}</option>${p.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>`;
     }
-    // Auto-fill fields that relate to a stock ticker or holdings
-    let autoVal = '';
-    if (currentTicker) {
+    // Restore from cache first, then auto-fill from loaded stock
+    let autoVal = aiParamsCache[`${idx}_${p.id}`] || '';
+    if (!autoVal && currentTicker) {
       const t = currentTicker.replace(/\.(ST|L)$/, '');
       if (p.id === 'p_ticker')    autoVal = t;
       if (p.id === 'p_portfolio') autoVal = `100% ${t}`;
@@ -5227,6 +5266,11 @@ function renderAIParams(m) {
   }).join('');
   html += `<button class="btn-analyze" onclick="runAnalysis()">▶ Analyze</button>`;
   container.innerHTML = html;
+  // Restore select values from cache
+  m.params.filter(p => p.type === 'select').forEach(p => {
+    const cached = aiParamsCache[`${idx}_${p.id}`];
+    if (cached) { const el = document.getElementById(p.id); if (el) el.value = cached; }
+  });
   checkKeyWarning();
 }
 
@@ -6146,6 +6190,13 @@ function onTickerKeydown(event) {
 const WEALTH_MODULE_INDICES = [2, 4, 6, 9]; // Bridgewater, BlackRock, Harvard, McKinsey
 
 function selectWealthModule(idx, btn) {
+  // Save current module's param values before switching
+  if (activeWealthModule !== null && activeWealthModule !== -2 && MODULES[activeWealthModule]) {
+    MODULES[activeWealthModule].params.forEach(p => {
+      const el = document.getElementById(`w_${activeWealthModule}_${p.id}`);
+      if (el) wealthParamsCache[`${activeWealthModule}_${p.id}`] = el.value;
+    });
+  }
   activeWealthModule = idx;
 
   // Update sidebar active state
@@ -6256,11 +6307,14 @@ function renderWealthParams(idx) {
         </select>
       </div>`;
     }
-    // Auto-fill text fields
-    let autoVal = '';
+    // Auto-fill text fields — restore from cache first, then auto-fill from loaded stock
+    const cached = wealthParamsCache[`${idx}_${p.id}`];
+    let autoVal = cached || '';
     const displayTicker = currentTicker ? currentTicker.replace(/\.(ST|L)$/, '') : '';
-    if (p.id === 'p_portfolio' && displayTicker) autoVal = `100% ${displayTicker}`;
-    if (p.id === 'p_holdings'  && displayTicker) autoVal = `${displayTicker} stock`;
+    if (!autoVal) {
+      if (p.id === 'p_portfolio' && displayTicker) autoVal = `100% ${displayTicker}`;
+      if (p.id === 'p_holdings'  && displayTicker) autoVal = `${displayTicker} stock`;
+    }
     // Currency hint in placeholder
     const placeholder = p.placeholder ? p.placeholder.replace('$', mk.currency) : '';
     return `<div class="param-group">
@@ -6275,6 +6329,13 @@ function renderWealthParams(idx) {
   </div>`;
   html += `<button class="btn-analyze" onclick="runWealthAnalysis(${idx})">▶ Analyze</button>`;
   container.innerHTML = html;
+
+  // Restore select values from cache
+  mod.params.filter(p => p.type === 'select' || p.id === 'p_account' || p.id === 'p_bracket').forEach(p => {
+    const val = wealthParamsCache[`${idx}_${p.id}`];
+    if (val) { const el = document.getElementById(`w_${idx}_${p.id}`); if (el) el.value = val; }
+  });
+
   updateWealthBanner();
   checkWealthKeyWarning();
 }
