@@ -1896,6 +1896,16 @@ tbody tr:last-child td { border-bottom:none; }
       <div class="modal-note">Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> — powers all 10 AI analysis modules.</div>
     </div>
 
+    <div class="modal-field">
+      <label class="modal-label">FMP API Key (Fundamentals — P/E, EPS, Beta, Market Cap)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="modal-input" id="fmpKeyInput" type="password" placeholder="your-fmp-key..." style="flex:1;margin:0;">
+        <button onclick="testFMPModal()" style="background:var(--blue-dim);border:1px solid var(--blue);color:var(--blue);font-family:'JetBrains Mono',monospace;font-size:11px;padding:9px 14px;border-radius:4px;cursor:pointer;white-space:nowrap;transition:all 0.2s;" onmouseover="this.style.background='var(--blue)';this.style.color='var(--bg)'" onmouseout="this.style.background='var(--blue-dim)';this.style.color='var(--blue)'">🔬 Test</button>
+      </div>
+      <div id="fmpStatus" style="margin-top:6px;font-size:11px;display:none;padding:7px 10px;border-radius:3px;font-family:'JetBrains Mono',monospace;"></div>
+      <div class="modal-note">Free key at <a href="https://financialmodelingprep.com/developer/docs" target="_blank">financialmodelingprep.com</a> — official API, covers US, UK &amp; Sweden. Without this, fundamentals fall back to Yahoo Finance.</div>
+    </div>
+
     <div class="modal-btns">
       <button class="btn-modal-cancel" onclick="closeSettings()">Cancel</button>
       <button class="btn-modal-save" onclick="saveSettings()">Save & Apply</button>
@@ -2918,7 +2928,8 @@ let activeWealthModule = 2; // default to Risk Assessment
 // STATE
 // ============================================================
 let anthropicKey = localStorage.getItem('apex_anthropic') || '';
-let fmpKey = localStorage.getItem('apex_fmp') || 'CLXkQzpKihpRdPPVsYkuBKWEmhBphQap';
+let fmpKey       = localStorage.getItem('apex_fmp')       || '';
+let PROXY_BASE   = localStorage.getItem('apex_proxy')     || '';
 let currentTicker = '';
 let currentStockData = null; // holds live market data for AI context
 let priceChart = null;
@@ -3629,7 +3640,8 @@ updateClock();
 function openSettings() {
   document.getElementById('anthropicKeyInput').value = anthropicKey;
   document.getElementById('proxyUrlInput').value     = PROXY_BASE;
-  ['proxyStatus','anthropicStatus'].forEach(id => {
+  document.getElementById('fmpKeyInput').value       = fmpKey;
+  ['proxyStatus','anthropicStatus','fmpStatus'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.style.display = 'none'; el.textContent = ''; }
   });
@@ -3641,12 +3653,33 @@ function closeSettings() {
 function saveSettings() {
   anthropicKey = document.getElementById('anthropicKeyInput').value.trim();
   PROXY_BASE   = document.getElementById('proxyUrlInput').value.trim().replace(/\/$/, '');
+  fmpKey       = document.getElementById('fmpKeyInput').value.trim();
   localStorage.setItem('apex_anthropic', anthropicKey);
   localStorage.setItem('apex_proxy',     PROXY_BASE);
+  localStorage.setItem('apex_fmp',       fmpKey);
   closeSettings();
   showToast('✓ Settings saved');
   checkKeyWarning();
   if (PROXY_BASE) loadLiveMacro();
+}
+
+async function testFMPModal() {
+  const key = document.getElementById('fmpKeyInput').value.trim();
+  if (!key) { setStatus('fmpStatus', false, 'Enter your FMP key first'); return; }
+  setStatus('fmpStatus', true, 'Testing...');
+  try {
+    const res  = await fetch(`https://financialmodelingprep.com/api/v3/profile/AAPL?apikey=${key}`);
+    const data = await res.json();
+    if (res.ok && data?.[0]?.symbol) {
+      setStatus('fmpStatus', true, `Connected ✓  AAPL: ${data[0].companyName}, P/E: ${data[0].pe?.toFixed(1) || 'n/a'}`);
+    } else if (data?.['Error Message']) {
+      setStatus('fmpStatus', false, `Invalid key — ${data['Error Message']}`);
+    } else {
+      setStatus('fmpStatus', false, `HTTP ${res.status} — check your key`);
+    }
+  } catch(e) {
+    setStatus('fmpStatus', false, `Error: ${e.message}`);
+  }
 }
 
 function setStatus(id, ok, msg) {
@@ -3749,7 +3782,6 @@ function switchTab(name) {
 // Set this to your deployed Netlify URL after deployment
 // e.g. 'https://apex-terminal-proxy.netlify.app'
 // Leave empty to use relative URLs (works when app is hosted on same domain)
-let PROXY_BASE = localStorage.getItem('apex_proxy') || '';
 
 async function yhFetch(endpoint, symbol) {
   const base = PROXY_BASE.replace(/\/$/, '');
@@ -3776,20 +3808,34 @@ const TV_RANGE_MAP = {
   'ALL': { range: 'ALL', interval: 'M'  },
 };
 
+// Major UK stocks that are dual-listed on US exchanges
+// TradingView free widget supports NYSE/NASDAQ but restricts LSE
+const UK_DUAL_LISTED = {
+  'AZN':  'NASDAQ:AZN',  // AstraZeneca
+  'HSBA': 'NYSE:HSBC',   // HSBC
+  'SHEL': 'NYSE:SHEL',   // Shell
+  'BP':   'NYSE:BP',     // BP
+  'VOD':  'NASDAQ:VOD',  // Vodafone
+  'GSK':  'NYSE:GSK',    // GSK
+  'RIO':  'NYSE:RIO',    // Rio Tinto
+  'ULVR': 'NYSE:UL',     // Unilever
+  'BARC': 'NYSE:BCS',    // Barclays
+  'LLOY': 'NYSE:LYG',    // Lloyds
+  'BA':   'NYSE:BAESY',  // BAE Systems
+};
+
 function toTradingViewSymbol(ticker) {
   if (ticker.endsWith('.ST')) {
-    // Nasdaq Stockholm — TradingView uses OMXSTO: prefix
-    // VOLV-B.ST → OMXSTO:VOLVB
+    // Nasdaq Stockholm — OMXSTO: works on free TradingView widget
     const base = ticker.replace('.ST', '').replace(/-/g, '');
     return `OMXSTO:${base}`;
   }
   if (ticker.endsWith('.L')) {
-    // London Stock Exchange
+    // UK — use dual-listed US symbol if available
     const base = ticker.replace('.L', '');
-    return `LSE:${base}`;
+    return UK_DUAL_LISTED[base] || null; // null = use Chart.js fallback
   }
-  // US stocks — return as-is, TradingView auto-resolves exchange
-  return ticker;
+  return ticker; // US stocks work as-is
 }
 
 function loadTradingViewChart(ticker, range) {
@@ -3797,35 +3843,34 @@ function loadTradingViewChart(ticker, range) {
   const label = document.getElementById('chartTickerLabel');
   if (label) label.textContent = ticker.replace(/\.(ST|L)$/, '');
 
-  // Skip TradingView entirely for SE and UK — free widget has restricted exchange access
-  // Go straight to Chart.js which uses our own proxy with no restrictions
-  if (activeMarket === 'SE' || activeMarket === 'UK') {
+  const tvSymbol = toTradingViewSymbol(ticker);
+
+  // If no valid TradingView symbol (e.g. UK stock not dual-listed) → Chart.js directly
+  if (!tvSymbol) {
     loadChartJsFallback(ticker, range);
     return;
   }
 
-  // US stocks — try TradingView first, fall back to Chart.js if it fails
   const cfg = TV_RANGE_MAP[range] || TV_RANGE_MAP['1D'];
   const containerId = `tv_${ticker}_${range}_${Date.now()}`;
 
   const tryTradingView = () => {
     wrap.innerHTML = `<div id="${containerId}" style="height:100%;width:100%"></div>`;
+    const tvTimezones = { US: 'America/New_York', SE: 'Europe/Stockholm', UK: 'Europe/London' };
+    const tvTz = tvTimezones[activeMarket] || 'America/New_York';
 
-    // Timeout: if TradingView hasn't loaded in 4 seconds, use Chart.js
     const tvTimeout = setTimeout(() => {
       const iframe = wrap.querySelector('iframe');
-      if (!iframe || iframe.clientHeight < 10) {
-        loadChartJsFallback(ticker, range);
-      }
+      if (!iframe || iframe.clientHeight < 10) loadChartJsFallback(ticker, range);
     }, 4000);
 
     try {
       new TradingView.widget({
         autosize: true,
-        symbol: toTradingViewSymbol(ticker),
+        symbol: tvSymbol,
         interval: cfg.interval,
         range: cfg.range,
-        timezone: 'America/New_York',
+        timezone: tvTz,
         theme: 'dark',
         style: '1',
         locale: 'en',
@@ -3985,6 +4030,64 @@ function changeRange(range, el) {
 }
 
 // ============================================================
+// FMP — Financial Modeling Prep (official API, browser-direct)
+// Free tier: 250 calls/day — covers US, UK, Sweden
+// ============================================================
+async function fetchFMPSummary(ticker, key) {
+  // FMP uses different ticker formats for international stocks
+  // VOLV-B.ST → VOLVB.ST for FMP (removes dash)
+  // AZN.L stays as AZN.L
+  const fmpTicker = ticker.replace(/^([A-Z]+)-([A-Z])(\.[A-Z]+)$/, '$1$2$3');
+
+  const res = await fetch(
+    `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(fmpTicker)}?apikey=${key}`
+  );
+  if (!res.ok) throw new Error(`FMP HTTP ${res.status}`);
+  const data = await res.json();
+
+  if (!data || !data[0]) throw new Error('FMP: no data');
+  const d = data[0];
+  if (d['Error Message']) throw new Error(d['Error Message']);
+
+  // Also fetch key metrics for EPS and analyst target
+  let eps = null, analystTarget = null, week52High = null, week52Low = null;
+  try {
+    const metricsRes = await fetch(
+      `https://financialmodelingprep.com/api/v3/key-metrics/${encodeURIComponent(fmpTicker)}?limit=1&apikey=${key}`
+    );
+    if (metricsRes.ok) {
+      const metricsData = await metricsRes.json();
+      const m = metricsData?.[0];
+      if (m) eps = m.netIncomePerShare || null;
+    }
+  } catch(e) {}
+
+  // FMP profile endpoint has 52w range
+  week52High = d.range ? parseFloat(d.range.split('-')[1]) : null;
+  week52Low  = d.range ? parseFloat(d.range.split('-')[0]) : null;
+
+  return {
+    name:         d.companyName    || ticker,
+    sector:       d.sector         || '',
+    industry:     d.industry       || '',
+    exchange:     d.exchangeShortName || d.exchange || '',
+    currency:     d.currency       || 'USD',
+    marketCap:    d.mktCap         || null,
+    peRatio:      d.pe             || null,
+    eps:          d.eps            || eps || null,
+    beta:         d.beta           || null,
+    week52High,
+    week52Low,
+    avgVolume10d: d.volAvg          || null,
+    divYield:     d.lastDiv && d.price ? (d.lastDiv / d.price) : null,
+    divRate:      d.lastDiv        || null,
+    analystTarget: d.dcfDiff ? (d.price + d.dcfDiff) : null, // DCF-based estimate
+    recommendation: '',
+    _source: 'FMP',
+  };
+}
+
+// ============================================================
 // LOAD STOCK — Yahoo Finance proxy + TradingView chart
 // ============================================================
 async function loadStock() {
@@ -4052,9 +4155,21 @@ async function loadStock() {
 
     syncAIWithStock(displayTicker, quote.name || displayTicker, cur, chg, pct);
 
-    // Step 2: Summary stats (P/E, EPS, 52w, market cap, dividend, beta, analyst target)
+    // Step 2: Summary stats — FMP first (official, browser-direct), Yahoo fallback
     try {
-      const stats = await yhFetch('summary', ticker);
+      let stats = null;
+
+      // ── Try FMP first if key is available ──
+      if (fmpKey) {
+        try {
+          stats = await fetchFMPSummary(ticker, fmpKey);
+        } catch(e) { stats = null; }
+      }
+
+      // ── Fall back to Yahoo proxy if FMP unavailable or failed ──
+      if (!stats) {
+        stats = await yhFetch('summary', ticker);
+      }
 
       document.getElementById('mktCap').textContent  = stats.marketCap
         ? fmtMarketCapLocal(stats.marketCap) : '--';
