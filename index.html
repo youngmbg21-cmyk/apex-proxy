@@ -4072,78 +4072,59 @@ function changeRange(range, el) {
 }
 
 // ============================================================
-// YAHOO BROWSER-DIRECT — fundamentals fetch bypassing Netlify
-// Calls Yahoo v7 directly from the browser — avoids cloud IP blocks
-// Yahoo allows browser CORS; it only blocks server/cloud IPs
+// YAHOO BROWSER-DIRECT — uses v11/quoteSummary (no crumb needed)
+// v11 works from both browser and server without crumb auth
 // ============================================================
 async function fetchYahooBrowserDirect(ticker) {
-  const fields = [
-    'shortName','longName','sector','industry','exchange','currency',
-    'marketCap','trailingPE','forwardPE','epsTrailingTwelveMonths',
-    'beta','fiftyTwoWeekHigh','fiftyTwoWeekLow',
-    'averageDailyVolume10Day','trailingAnnualDividendYield',
-    'trailingAnnualDividendRate','targetMeanPrice','recommendationKey',
-  ].join(',');
-
-  // Try fetching crumb first (needed for v7 since 2023)
-  // Browser requests get cookies automatically — much more reliable than server
-  let crumb = null;
-  try {
-    const crumbRes = await fetch('https://query1.finance.yahoo.com/v1/test/csrfToken', {
-      credentials: 'include',
-      headers: { 'Accept': 'text/plain' }
-    });
-    if (crumbRes.ok) crumb = (await crumbRes.text()).trim();
-  } catch(e) {}
-
-  // Also try query2 if query1 failed
-  if (!crumb) {
-    try {
-      const crumbRes2 = await fetch('https://query2.finance.yahoo.com/v1/test/csrfToken', {
-        credentials: 'include',
-        headers: { 'Accept': 'text/plain' }
-      });
-      if (crumbRes2.ok) crumb = (await crumbRes2.text()).trim();
-    } catch(e) {}
-  }
-
-  const crumbParam = crumb ? `&crumb=${encodeURIComponent(crumb)}` : '';
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(ticker)}&fields=${fields}${crumbParam}`;
+  const modules = 'summaryDetail,defaultKeyStatistics,financialData,price,quoteType';
+  const url = `https://query2.finance.yahoo.com/v11/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
 
   const res = await fetch(url, {
-    credentials: 'include',
     headers: { 'Accept': 'application/json' }
   });
-  if (!res.ok) throw new Error(`Yahoo browser HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Yahoo v11 HTTP ${res.status}`);
 
   const data = await res.json();
-  const r = data?.quoteResponse?.result?.[0];
-  if (!r) throw new Error('Yahoo browser: no data');
+  const r = data?.quoteSummary?.result?.[0];
+  if (!r) throw new Error('Yahoo v11: no data');
 
-  const v = (key) => {
-    const val = r[key];
+  const sd = r.summaryDetail        || {};
+  const ks = r.defaultKeyStatistics || {};
+  const fd = r.financialData        || {};
+  const pr = r.price                || {};
+  const qt = r.quoteType            || {};
+
+  const v = (obj, key) => {
+    const val = obj[key];
     if (val === null || val === undefined) return null;
     return typeof val === 'object' && 'raw' in val ? val.raw : val;
   };
 
   return {
-    name:         r.shortName    || r.longName    || ticker,
-    sector:       r.sector       || '',
-    industry:     r.industry     || '',
-    exchange:     r.exchange     || '',
-    currency:     r.currency     || 'USD',
-    marketCap:    v('marketCap'),
-    peRatio:      v('trailingPE') || v('forwardPE'),
-    eps:          v('epsTrailingTwelveMonths'),
-    beta:         v('beta'),
-    week52High:   v('fiftyTwoWeekHigh'),
-    week52Low:    v('fiftyTwoWeekLow'),
-    avgVolume10d: v('averageDailyVolume10Day'),
-    divYield:     v('trailingAnnualDividendYield'),
-    divRate:      v('trailingAnnualDividendRate'),
-    analystTarget:  v('targetMeanPrice'),
-    recommendation: r.recommendationKey || '',
-    _source: 'Yahoo-Browser',
+    name:           v(pr,'shortName')  || v(pr,'longName')  || ticker,
+    sector:         v(qt,'sector')     || '',
+    industry:       v(qt,'industry')   || '',
+    exchange:       v(pr,'exchangeName') || '',
+    currency:       v(pr,'currency')   || 'USD',
+    marketCap:      v(pr,'marketCap')  || v(sd,'marketCap') || null,
+    peRatio:        v(sd,'trailingPE') || v(sd,'forwardPE') || null,
+    forwardPE:      v(sd,'forwardPE')  || null,
+    eps:            v(ks,'trailingEps') || null,
+    beta:           v(sd,'beta')       || null,
+    week52High:     v(sd,'fiftyTwoWeekHigh') || null,
+    week52Low:      v(sd,'fiftyTwoWeekLow')  || null,
+    avgVolume10d:   v(sd,'averageVolume10days') || null,
+    divYield:       v(sd,'dividendYield')  || null,
+    divRate:        v(sd,'dividendRate')   || null,
+    analystTarget:  v(fd,'targetMeanPrice') || null,
+    recommendation: fd.recommendationKey   || '',
+    profitMargin:   v(fd,'profitMargins')  || null,
+    returnOnEquity: v(fd,'returnOnEquity') || null,
+    debtToEquity:   v(fd,'debtToEquity')  || null,
+    priceToBook:    v(ks,'priceToBook')    || null,
+    pegRatio:       v(ks,'pegRatio')       || null,
+    evToEbitda:     v(ks,'enterpriseToEbitda') || null,
+    _source: 'Yahoo-v11-browser',
   };
 }
 async function fetchFMPSummary(ticker, key) {
