@@ -763,6 +763,30 @@ body::after {
 .param-input:focus,.param-select:focus { border-color:var(--green); }
 .param-select option { background:var(--bg3); }
 
+/* ===== FULL REPORT MODULE BLOCKS ===== */
+.fr-module-block {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.fr-module-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.fr-module-block-header:hover { background: var(--bg4); }
+.fr-module-block-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
+.fr-module-block-name { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.fr-module-status { font-size: 9px; letter-spacing: 0.06em; color: var(--text3); white-space: nowrap; }
+.fr-module-chevron { font-size: 9px; color: var(--text3); flex-shrink: 0; }
+.fr-module-fields { padding: 10px 12px 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+
 .btn-analyze {
   background: var(--green);
   color: var(--bg);
@@ -1458,6 +1482,303 @@ tbody tr:last-child td { border-bottom:none; }
 ::-webkit-scrollbar-track { background:var(--bg2); }
 ::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:2px; }
 
+/* ============================================================
+   APEX CHATBOT
+   ============================================================ */
+
+/* Floating trigger button */
+.chat-trigger {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 600;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), #00C8FF);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 4px 24px rgba(0,255,136,0.35);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.chat-trigger:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(0,255,136,0.5); }
+.chat-trigger-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--amber);
+  color: var(--bg);
+  font-size: 9px;
+  font-weight: 800;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Minimised tab */
+.chat-minimised {
+  position: fixed;
+  bottom: 0;
+  right: 28px;
+  z-index: 600;
+  background: linear-gradient(135deg, var(--green), #00C8FF);
+  border-radius: 8px 8px 0 0;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+  user-select: none;
+  transition: opacity 0.2s;
+}
+.chat-minimised:hover { opacity: 0.9; }
+.chat-min-title { font-size: 13px; font-weight: 700; color: #fff; font-family: 'Syne', sans-serif; }
+.chat-min-sub   { font-size: 11px; color: rgba(255,255,255,0.75); }
+
+/* Main panel */
+.chat-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 460px;
+  z-index: 600;
+  background: var(--bg2);
+  border-left: 1px solid var(--border2);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+  animation: chatSlideIn 0.28s ease-out;
+  transition: width 0.22s ease;
+}
+.chat-panel.expanded { width: 720px; }
+@keyframes chatSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* Panel header */
+.chat-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+  flex-shrink: 0;
+}
+.chat-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--green), #00C8FF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.chat-title   { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); }
+.chat-sub     { font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
+.chat-header-btns { display: flex; gap: 5px; margin-left: auto; align-items: center; }
+.chat-hbtn {
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+.chat-hbtn:hover { color: var(--text); border-color: var(--border2); }
+.chat-hbtn.clear { width: auto; padding: 4px 10px; font-size: 10px; letter-spacing: 0.06em; }
+.chat-hbtn.clear:hover { color: var(--red); border-color: var(--red); }
+
+/* Context pills */
+.chat-pills {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.chat-pill {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(0,255,136,0.1);
+  border: 1px solid rgba(0,255,136,0.25);
+  color: var(--green);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Messages area */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-msg-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.chat-msg-wrap.user  { align-items: flex-end; }
+.chat-msg-wrap.assistant { align-items: flex-start; }
+.chat-msg-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-left: 2px;
+}
+.chat-bubble {
+  max-width: 88%;
+  padding: 10px 13px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--text);
+}
+.chat-bubble.user {
+  background: linear-gradient(135deg, rgba(0,255,136,0.12), rgba(0,200,255,0.08));
+  border: 1px solid rgba(0,255,136,0.2);
+  border-radius: 12px 12px 2px 12px;
+}
+.chat-bubble.assistant {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 12px 2px;
+}
+.chat-bubble.error { border-color: rgba(255,69,96,0.4); color: var(--red); }
+.chat-bubble strong { color: var(--text); font-weight: 600; }
+.chat-bubble em { color: var(--text2); font-style: italic; }
+.chat-bubble code {
+  background: var(--bg4);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--green);
+}
+.chat-bubble ul, .chat-bubble ol {
+  margin: 6px 0 6px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.chat-bubble li { color: var(--text2); }
+
+/* Typing dots */
+.chat-typing {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 0;
+}
+.chat-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: chatDot 1.2s infinite;
+}
+.chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes chatDot {
+  0%,100% { opacity: 0.2; transform: scale(0.8); }
+  50%      { opacity: 1;   transform: scale(1);   }
+}
+
+/* Input area */
+.chat-input-area {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg3);
+  flex-shrink: 0;
+}
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.chat-input {
+  flex: 1;
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  resize: none;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 0.2s;
+  max-height: 120px;
+}
+.chat-input:focus { border-color: var(--green); }
+.chat-input::placeholder { color: var(--text3); }
+.chat-send {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--green), #00C8FF);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.chat-send:hover { transform: scale(1.05); }
+.chat-send:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+/* Suggested prompts */
+.chat-suggestions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.chat-suggest-btn {
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  color: var(--text3);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+  text-align: left;
+}
+.chat-suggest-btn:hover { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+
 @media (max-width:900px) {
   .overview-grid { grid-template-columns:1fr; }
   .metrics-row { grid-template-columns:repeat(3,1fr); }
@@ -1672,7 +1993,7 @@ tbody tr:last-child td { border-bottom:none; }
         <div style="font-size:9px;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;padding:4px 2px;margin-bottom:4px;">Analysis Modules</div>
         <div class="ai-module-btn full-report" onclick="selectModule(-1,this)">
           <div class="ai-module-icon">⚡</div>
-          <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">All 9 modules · Master summary</div></div>
+          <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">Up to 10 modules · You choose · Master summary</div></div>
         </div>
         <div class="full-report-divider"></div>
         <div class="ai-module-btn active" onclick="selectModule(0,this)">
@@ -1742,6 +2063,7 @@ tbody tr:last-child td { border-bottom:none; }
           <button class="btn-export pdf" onclick="exportPDF()">🖨 PDF</button>
           <button class="btn-export email" onclick="openEmailModal()">✉ Email</button>
           <button class="btn-export" onclick="copyReport()">⎘ Copy</button>
+          <button class="btn-export" onclick="askAboutReport()" style="border-color:rgba(0,255,136,0.3);color:var(--green);">💬 Ask AI</button>
           <span id="copyConfirm" style="font-size:10px;color:var(--green);opacity:0;transition:opacity 0.4s;margin-left:4px;"></span>
           <div style="margin-left:auto;font-size:9px;color:var(--text3);font-style:italic;">AI-generated · not financial advice</div>
         </div>
@@ -2236,6 +2558,61 @@ tbody tr:last-child td { border-bottom:none; }
 
 <div class="toast" id="toast"></div>
 
+<!-- ============================================================
+     APEX CHATBOT
+     ============================================================ -->
+
+<!-- Floating trigger button (visible when chat is closed) -->
+<button class="chat-trigger" id="chatTrigger" onclick="openChat()" title="APEX AI Assistant" style="display:flex;">
+  <span>💬</span>
+  <span class="chat-trigger-badge" id="chatBadge" style="display:none;"></span>
+</button>
+
+<!-- Minimised tab (visible when minimised) -->
+<div class="chat-minimised" id="chatMinimised" style="display:none;" onclick="unminimiseChat()">
+  <span style="font-size:16px;">💬</span>
+  <div>
+    <div class="chat-min-title">APEX AI</div>
+    <div class="chat-min-sub" id="chatMinSub">Click to expand</div>
+  </div>
+  <span style="font-size:11px;color:rgba(255,255,255,0.8);">▲</span>
+</div>
+
+<!-- Main chat panel -->
+<div class="chat-panel" id="chatPanel" style="display:none;">
+  <!-- Header -->
+  <div class="chat-header">
+    <div class="chat-header-row">
+      <div class="chat-avatar">🤖</div>
+      <div>
+        <div class="chat-title">APEX AI Assistant</div>
+        <div class="chat-sub" id="chatSubtitle">Aware of your terminal context</div>
+      </div>
+      <div class="chat-header-btns">
+        <button class="chat-hbtn clear" onclick="clearChat()" title="Clear chat">CLEAR</button>
+        <button class="chat-hbtn" id="chatExpandBtn" onclick="toggleExpand()" title="Expand">⇤</button>
+        <button class="chat-hbtn" onclick="minimiseChat()" title="Minimise">▼</button>
+        <button class="chat-hbtn" onclick="closeChat()" title="Close" style="font-size:14px;">✕</button>
+      </div>
+    </div>
+    <div class="chat-pills" id="chatPills"></div>
+  </div>
+
+  <!-- Messages -->
+  <div class="chat-messages" id="chatMessages"></div>
+
+  <!-- Input -->
+  <div class="chat-input-area">
+    <div class="chat-suggestions" id="chatSuggestions"></div>
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chatInput" rows="2"
+        placeholder="Ask about the loaded stock, reports, portfolio…"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+      <button class="chat-send" id="chatSendBtn" onclick="sendChat()">➤</button>
+    </div>
+  </div>
+</div>
+
 <!-- EMAIL MODAL -->
 <div class="modal-overlay" id="emailModal">
   <div class="modal" style="width:520px;">
@@ -2280,7 +2657,7 @@ const MARKETS = {
     benchmarkIndex: 'SPY',
     altIndex: 'QQQ',
     altIndexName: 'NASDAQ 100',
-    watchlist: ['SPY','QQQ','AAPL','MSFT','NVDA','TSLA','META','GOOGL','AMZN','JPM','GLD'],
+    watchlist: ['SPY','QQQ','AAPL','MSFT','NVDA','TSLA','META','GOOGL','AMZN','JPM','GC=F'],
     watchlistNames: ['S&P 500','NASDAQ','Apple','Microsoft','Nvidia','Tesla','Meta','Alphabet','Amazon','JPMorgan','Gold'],
     macroRates: [
       ['S&P 500','SPY'],['NASDAQ 100','QQQ'],['Fed Funds Rate','—'],['10Y Treasury','—'],['USD Index','—'],['VIX','—']
@@ -3218,11 +3595,30 @@ const TV_RANGE_MAP = {
   'ALL': { range: 'ALL', interval: 'M'  },
 };
 
+function toTradingViewSymbol(ticker) {
+  // Convert Yahoo Finance ticker format to TradingView format
+  // Yahoo: VOLV-B.ST → TradingView: OMX:VOLVB
+  // Yahoo: AZN.L     → TradingView: LSE:AZN
+  // Yahoo: AAPL      → TradingView: NASDAQ:AAPL (TradingView resolves US automatically)
+  if (ticker.endsWith('.ST')) {
+    // Swedish: strip .ST, convert dash to nothing for TradingView OMX
+    const base = ticker.replace('.ST', '').replace('-', '');
+    return `OMX:${base}`;
+  }
+  if (ticker.endsWith('.L')) {
+    // UK: strip .L, use LSE exchange
+    const base = ticker.replace('.L', '');
+    return `LSE:${base}`;
+  }
+  // US: return as-is, TradingView resolves it
+  return ticker;
+}
+
 function loadTradingViewChart(ticker, range) {
   const cfg = TV_RANGE_MAP[range] || TV_RANGE_MAP['1D'];
   const wrap = document.getElementById('chartWrap');
   const label = document.getElementById('chartTickerLabel');
-  if (label) label.textContent = ticker;
+  if (label) label.textContent = ticker.replace(/\.(ST|L)$/, '');
 
   const containerId = `tv_${ticker}_${range}_${Date.now()}`;
 
@@ -3232,7 +3628,7 @@ function loadTradingViewChart(ticker, range) {
     const tvTz = tvTimezones[activeMarket] || 'America/New_York';
     try {
       new TradingView.widget({
-        autosize: true, symbol: ticker,
+        autosize: true, symbol: toTradingViewSymbol(ticker),
         interval: cfg.interval, range: cfg.range,
         timezone: tvTz, theme: 'dark',
         style: '1', locale: 'en',
@@ -3627,24 +4023,30 @@ async function loadLiveMacro() {
   if (!PROXY_BASE) return;
 
   const m = mkt();
-  const watchlist = m.watchlist;
+
+  // Collect all symbols to fetch — watchlist + any rates row symbols not already in watchlist
+  const d = MACRO_DATA[activeMarket] || MACRO_DATA.US;
+  const rateSymbols = d.ratesRows.map(([,sym]) => sym);
+  const allSymbols  = [...new Set([...m.watchlist, ...rateSymbols])];
+
+  // ── Fetch ALL symbols in parallel — much faster than sequential ──
+  const settled = await Promise.allSettled(
+    allSymbols.map(sym => yhFetch('quote', sym).then(q => ({ sym, q })))
+  );
+
   const results = [];
+  settled.forEach(r => {
+    if (r.status === 'fulfilled' && r.value.q?.price) {
+      const { sym, q } = r.value;
+      results.push({ symbol: sym, price: q.price, change: q.change || 0, pct: q.changePct || 0 });
+    }
+  });
 
-  for (const sym of watchlist) {
-    try {
-      const q = await yhFetch('quote', sym);
-      if (q && q.price) results.push({
-        symbol: sym,
-        price:  q.price,
-        change: q.change    || 0,
-        pct:    q.changePct || 0,
-      });
-    } catch(e) {}
-  }
-
-  if (results.length) {
+  // ── Update ticker strip with watchlist results ──
+  const stripResults = results.filter(r => m.watchlist.includes(r.symbol));
+  if (stripResults.length) {
     const track = document.getElementById('tickerTrack');
-    const items = results.map(q => {
+    const items = stripResults.map(q => {
       const isUp       = q.change >= 0;
       const displaySym = q.symbol.replace(/\.(ST|L)$/, '');
       const priceStr   = m.currency === 'kr'
@@ -3656,26 +4058,33 @@ async function loadLiveMacro() {
     showToast(`✓ Live ${m.flag} market data loaded`);
   }
 
-  // Update rates table
+  // ── Update rates table with all fetched results ──
   const tbody = document.getElementById('ratesBody');
-  if (tbody && results.length) {
-    const d = MACRO_DATA[activeMarket] || MACRO_DATA.US;
+  if (tbody) {
     tbody.innerHTML = d.ratesRows.map(([name, sym]) => {
       const q = results.find(r => r.symbol === sym);
       if (q) {
         const isUp     = q.change >= 0;
-        const priceStr = activeMarket === 'SE'
-          ? `${q.price.toFixed(0)} kr`
-          : activeMarket === 'UK'
-            ? `£${q.price.toFixed(2)}`
-            : `${q.price.toLocaleString('en-US',{maximumFractionDigits:2})}`;
+        // Format price based on instrument type
+        let priceStr;
+        if (activeMarket === 'SE') {
+          priceStr = `${q.price.toFixed(0)} kr`;
+        } else if (activeMarket === 'UK') {
+          priceStr = `£${q.price.toFixed(2)}`;
+        } else if (sym === 'BTC-USD') {
+          priceStr = `$${q.price.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+        } else if (sym === 'CL=F' || sym === 'GC=F') {
+          priceStr = `$${q.price.toFixed(2)}`;
+        } else {
+          priceStr = `${q.price.toLocaleString('en-US', {maximumFractionDigits: 2})}`;
+        }
         return `<tr>
           <td class="td-ticker">${name}</td>
           <td>${priceStr}</td>
           <td class="${isUp?'td-pos':'td-neg'}">${isUp?'▲':'▼'} ${isUp?'+':''}${q.pct.toFixed(2)}%</td>
         </tr>`;
       }
-      return `<tr><td class="td-ticker">${name}</td><td>—</td><td class="td-neu" style="color:var(--text3)">—</td></tr>`;
+      return `<tr><td class="td-ticker">${name}</td><td>—</td><td style="color:var(--text3)">—</td></tr>`;
     }).join('');
   }
 }
@@ -3732,53 +4141,170 @@ async function anthropicFetch(key, body) {
 }
 
 // ============================================================
-// FULL INTELLIGENCE REPORT
+// FULL REPORT — required fields per module (for skip logic)
 // ============================================================
+// Keys listed here must be non-empty for the module to run.
+// Modules missing any required key are skipped with a note.
+const FR_REQUIRED = {
+  0: ['p_ticker'],                      // Goldman
+  1: ['p_ticker'],                      // Morgan Stanley
+  2: ['p_portfolio', 'p_value'],        // Bridgewater
+  3: ['p_ticker'],                      // JPMorgan (p_date optional)
+  4: ['p_age', 'p_amount'],             // BlackRock
+  5: ['p_ticker'],                      // Citadel
+  6: ['p_amount', 'p_goal'],            // Harvard Dividend
+  7: ['p_sector'],                      // Bain
+  8: ['p_ticker'],                      // Renaissance
+  9: ['p_holdings'],                    // McKinsey
+};
 
-// Which modules to include and their icons
+// Which modules to include and their icons — now ALL 10
 const FULL_REPORT_MODULES = [
   { idx: 0, icon: '📊', name: 'Goldman Sachs Screener' },
   { idx: 1, icon: '🏦', name: 'Morgan Stanley DCF' },
   { idx: 2, icon: '⚠️', name: 'Bridgewater Risk Assessment' },
   { idx: 3, icon: '📋', name: 'JPMorgan Earnings Analysis' },
+  { idx: 4, icon: '🏗️', name: 'BlackRock Portfolio Builder' },
   { idx: 5, icon: '📉', name: 'Citadel Technical Analysis' },
+  { idx: 6, icon: '💰', name: 'Harvard Dividend Strategy' },
+  { idx: 7, icon: '🔍', name: 'Bain Competitive Analysis' },
   { idx: 8, icon: '🔢', name: 'Renaissance Pattern Finder' },
   { idx: 9, icon: '🌍', name: 'McKinsey Macro Impact' },
 ];
 
-// Build default params for each module using the full report inputs
-function buildFullReportParams(modIdx, frParams) {
-  const ticker = (frParams.fr_ticker || '').toUpperCase();
-  const risk   = frParams.fr_risk   || 'Moderate';
-  const horizon= frParams.fr_horizon|| 'Medium (1-3yr)';
-  const amount = frParams.fr_amount || '$100,000';
+function renderFullReportParams() {
+  const container = document.getElementById('aiParams');
+  const autoTicker = currentTicker ? currentTicker.replace(/\.(ST|L)$/, '') : '';
 
-  const defaults = {
-    0: { p_ticker: ticker, p_risk: risk, p_horizon: horizon },
-    1: { p_ticker: ticker, p_growth: 'Base Case (10-15%)' },
-    2: { p_portfolio: `100% ${ticker}`, p_value: '$100,000' },
-    3: { p_ticker: ticker, p_quarter: 'Next Earnings' },
-    5: { p_ticker: ticker, p_position: 'No position (considering buy)' },
-    8: { p_ticker: ticker, p_period: 'Last 3 years' },
-    9: { p_holdings: `${ticker} stock`, p_concern: 'All of the above' },
-  };
-  return defaults[modIdx] || {};
+  // Build one collapsible section per module
+  const sections = FULL_REPORT_MODULES.map(fm => {
+    const mod = MODULES[fm.idx];
+    const required = FR_REQUIRED[fm.idx] || [];
+
+    const fields = mod.params.map(p => {
+      // Auto-fill ticker fields
+      let autoVal = '';
+      if (p.id === 'p_ticker' && autoTicker) autoVal = autoTicker;
+
+      if (p.type === 'select') {
+        const opts = p.options.map(o => `<option value="${o}">${o}</option>`).join('');
+        return `<div class="param-group">
+          <div class="param-label">${p.label}</div>
+          <select class="param-select" id="fr_${fm.idx}_${p.id}">
+            <option value="">${p.label}</option>
+            ${opts}
+          </select>
+        </div>`;
+      }
+      const isRequired = required.includes(p.id);
+      return `<div class="param-group">
+        <div class="param-label">${p.label}${isRequired ? ' <span style="color:var(--green)">*</span>' : ' <span style="color:var(--text3);font-size:8px;">optional</span>'}</div>
+        <input class="param-input" id="fr_${fm.idx}_${p.id}" placeholder="${p.placeholder || ''}" type="text" value="${autoVal}" oninput="updateFRModuleStatus(${fm.idx})">
+      </div>`;
+    }).join('');
+
+    return `<div class="fr-module-block" id="fr-block-${fm.idx}">
+      <div class="fr-module-block-header" onclick="toggleFRModule(${fm.idx})">
+        <span class="fr-module-block-icon">${fm.icon}</span>
+        <span class="fr-module-block-name">${fm.name}</span>
+        <span class="fr-module-block-firm" style="font-size:9px;color:var(--text3);flex:1;padding-left:6px;">${mod.sub.split(' ')[0]} ${mod.sub.split(' ')[1] || ''}</span>
+        <span class="fr-module-status" id="fr-status-${fm.idx}">○ Fill to include</span>
+        <span class="fr-module-chevron" id="fr-chevron-${fm.idx}">▼</span>
+      </div>
+      <div class="fr-module-fields" id="fr-fields-${fm.idx}" style="display:none;">
+        ${fields}
+      </div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.6;">
+      Fill in any modules you want to include. Modules with a <span style="color:var(--green)">*</span> required field filled will run automatically — others are skipped.
+      <br><span style="color:var(--green);font-weight:600;">Ticker fields auto-fill</span> from the loaded stock.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;" id="frModuleBlocks">
+      ${sections}
+    </div>
+    <button class="btn-analyze" onclick="runFullReport()" style="background:var(--amber);color:var(--bg);">⚡ Run Full Report</button>
+  `;
+
+  // Set initial status for each module
+  FULL_REPORT_MODULES.forEach(fm => updateFRModuleStatus(fm.idx));
+  checkKeyWarning();
+}
+
+function toggleFRModule(idx) {
+  const fields  = document.getElementById(`fr-fields-${idx}`);
+  const chevron = document.getElementById(`fr-chevron-${idx}`);
+  if (!fields) return;
+  const isOpen = fields.style.display !== 'none';
+  fields.style.display  = isOpen ? 'none' : 'block';
+  if (chevron) chevron.textContent = isOpen ? '▼' : '▲';
+}
+
+function updateFRModuleStatus(idx) {
+  const required = FR_REQUIRED[idx] || [];
+  const mod      = MODULES[idx];
+  const statusEl = document.getElementById(`fr-status-${idx}`);
+  const blockEl  = document.getElementById(`fr-block-${idx}`);
+  if (!statusEl) return;
+
+  // Collect all param values for this module
+  const vals = {};
+  mod.params.forEach(p => {
+    const el = document.getElementById(`fr_${idx}_${p.id}`);
+    if (el) vals[p.id] = el.value.trim();
+  });
+
+  const allRequiredFilled = required.every(k => vals[k] && vals[k].length > 0);
+  const anyFilled = Object.values(vals).some(v => v && v.length > 0);
+
+  if (allRequiredFilled) {
+    statusEl.textContent  = '✓ Will run';
+    statusEl.style.color  = 'var(--green)';
+    blockEl.style.borderColor = 'rgba(0,255,136,0.3)';
+  } else if (anyFilled) {
+    statusEl.textContent  = '⚠ Missing required';
+    statusEl.style.color  = 'var(--amber)';
+    blockEl.style.borderColor = 'rgba(255,184,0,0.3)';
+  } else {
+    statusEl.textContent  = '○ Fill to include';
+    statusEl.style.color  = 'var(--text3)';
+    blockEl.style.borderColor = '';
+  }
+}
+
+// Collect params for a module from the FR fields
+function getFRParams(idx) {
+  const mod = MODULES[idx];
+  const params = {};
+  mod.params.forEach(p => {
+    const el = document.getElementById(`fr_${idx}_${p.id}`);
+    if (el) params[p.id] = el.value.trim();
+  });
+  return params;
+}
+
+// Check if a module is ready to run
+function isFRModuleReady(idx) {
+  const required = FR_REQUIRED[idx] || [];
+  const params   = getFRParams(idx);
+  return required.every(k => params[k] && params[k].length > 0);
 }
 
 async function runFullReport() {
   if (!anthropicKey) { openSettings(); return; }
   if (frRunning) { showToast('Full Report already running...'); return; }
 
-  const ticker  = (document.getElementById('fr_ticker')?.value || '').trim().toUpperCase();
-  const risk    = document.getElementById('fr_risk')?.value    || 'Moderate';
-  const horizon = document.getElementById('fr_horizon')?.value || 'Medium (1-3yr)';
-  const amount  = document.getElementById('fr_amount')?.value  || '$100,000';
+  // Determine which modules are ready to run
+  const modulesToRun = FULL_REPORT_MODULES.filter(fm => isFRModuleReady(fm.idx));
+  if (modulesToRun.length === 0) {
+    showToast('Fill in at least one module to run the Full Report');
+    return;
+  }
 
-  if (!ticker) { showToast('Enter a ticker symbol to run Full Report'); return; }
-
-  // Clear previous cache for full report since we're starting fresh
   delete reportCache[-1];
-  frLastParams  = { fr_ticker: ticker, fr_risk: risk, fr_horizon: horizon, fr_amount: amount };
+  frLastParams  = {}; // no longer needed — params come from getFRParams per module
   frLastResults = [];
   frRunning     = true;
 
@@ -3786,26 +4312,26 @@ async function runFullReport() {
   const toolbar  = document.getElementById('reportToolbar');
   toolbar.style.display = 'none';
 
-  // Disable button
   const btn = document.querySelector('.btn-analyze');
   if (btn) { btn.disabled = true; btn.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`; }
 
-  // Render progress UI
-  outputEl.innerHTML = buildProgressUI(ticker);
+  outputEl.innerHTML = buildProgressUI(modulesToRun);
 
-  for (let i = 0; i < FULL_REPORT_MODULES.length; i++) {
-    const fm  = FULL_REPORT_MODULES[i];
+  for (let i = 0; i < modulesToRun.length; i++) {
+    const fm  = modulesToRun[i];
     const mod = MODULES[fm.idx];
 
     updateStep(i, 'active');
 
-    const params = buildFullReportParams(fm.idx, frLastParams);
+    const params = getFRParams(fm.idx);
+    const ticker = params.p_ticker || params.p_holdings || params.p_sector || params.p_portfolio || '';
+
     const stockContext = (() => {
-      const sd = currentStockData && currentStockData.ticker === ticker ? currentStockData : null;
       const mk = mkt();
       const mktCtx = `Market: ${mk.aiMarketContext} Benchmark: ${mk.benchmark}. Currency: ${mk.currencyCode} (${mk.currency}).`;
+      const sd = currentStockData && ticker && currentStockData.ticker.replace(/\.(ST|L)$/,'') === ticker.toUpperCase() ? currentStockData : null;
       if (sd) return `Stock: ${sd.ticker} (${sd.name}), Current Price: ${fmtCurrency(sd.price)}, Change: ${sd.change>=0?'+':''}${Number(sd.change).toFixed(2)} (${Number(sd.pct).toFixed(2)}%), ${mktCtx} Date: March 2026`;
-      return `Stock: ${ticker}, ${mktCtx} Date: March 2026`;
+      return ticker ? `Stock/Focus: ${ticker}, ${mktCtx} Date: March 2026` : `${mktCtx} Date: March 2026`;
     })();
 
     try {
@@ -3830,36 +4356,33 @@ async function runFullReport() {
 
       frLastResults.push({ fm, mod, parsed, error: null });
       updateStep(i, 'done');
-      updateOverallBar(i + 1, FULL_REPORT_MODULES.length);
+      updateOverallBar(i + 1, modulesToRun.length);
 
     } catch(e) {
       frLastResults.push({ fm, mod, parsed: null, error: e.message });
       updateStep(i, 'error');
-      updateOverallBar(i + 1, FULL_REPORT_MODULES.length);
+      updateOverallBar(i + 1, modulesToRun.length);
     }
 
-    if (i < FULL_REPORT_MODULES.length - 1) await new Promise(r => setTimeout(r, 400));
+    if (i < modulesToRun.length - 1) await new Promise(r => setTimeout(r, 400));
   }
 
   // Master summary
   updateStepSummary('active');
   let masterHTML = '';
   try {
-    const summaryData = buildMasterSummary(frLastResults, ticker, risk, horizon);
-    masterHTML = renderMasterSummary(summaryData, ticker);
+    const summaryData = buildMasterSummary(frLastResults, modulesToRun.length);
+    masterHTML = renderMasterSummary(summaryData);
     updateStepSummary('done');
   } catch(e) { updateStepSummary('error'); }
 
-  // Render final output
-  renderFullReportOutput(frLastResults, masterHTML, ticker);
+  renderFullReportOutput(frLastResults, masterHTML);
   toolbar.style.display = 'flex';
 
-  // Save to cache
-  const cacheLabel = `Full Report · ${ticker}`;
+  const cacheLabel = `Full Report · ${modulesToRun.length} modules`;
   reportCache[-1] = { html: outputEl.innerHTML, toolbarVisible: true, label: cacheLabel, timestamp: new Date() };
   showCacheBadge(cacheLabel, reportCache[-1].timestamp);
-
-  showToast(`✓ Full Intelligence Report — ${ticker} complete`);
+  showToast(`✓ Full Report complete — ${modulesToRun.length} modules ran`);
   frRunning = false;
   if (btn) { btn.disabled = false; btn.innerHTML = '⚡ Run Full Report'; }
 }
@@ -3868,28 +4391,29 @@ async function runFullReport() {
 async function retryModule(resultIdx) {
   if (!anthropicKey) { openSettings(); return; }
   if (frRunning) { showToast('Wait for current run to finish'); return; }
-  if (!frLastParams) { showToast('No full report to retry — run Full Report first'); return; }
+  if (!frLastResults.length) { showToast('No full report to retry — run Full Report first'); return; }
 
   const r = frLastResults[resultIdx];
   if (!r) return;
 
   frRunning = true;
 
-  const chapterEl  = document.getElementById(`fr-chapter-${resultIdx}`);
-  const retryBtn   = document.getElementById(`fr-retry-${resultIdx}`);
+  const chapterEl   = document.getElementById(`fr-chapter-${resultIdx}`);
+  const retryBtn    = document.getElementById(`fr-retry-${resultIdx}`);
   const chapterBody = document.getElementById(`fr-chapter-body-${resultIdx}`);
 
-  if (retryBtn)   { retryBtn.disabled = true; retryBtn.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span> Retrying...`; }
-  if (chapterEl)  { chapterEl.style.borderColor = 'rgba(255,184,0,0.35)'; }
+  if (retryBtn)  { retryBtn.disabled = true; retryBtn.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span> Retrying...`; }
+  if (chapterEl) { chapterEl.style.borderColor = 'rgba(255,184,0,0.35)'; }
 
-  const ticker = frLastParams.fr_ticker;
-  const params = buildFullReportParams(r.fm.idx, frLastParams);
+  // Params come from the FR fields (still rendered in the sidebar)
+  const params = getFRParams(r.fm.idx);
+  const ticker = params.p_ticker || params.p_holdings || params.p_sector || params.p_portfolio || '';
   const stockContext = (() => {
-    const sd = currentStockData && currentStockData.ticker === ticker ? currentStockData : null;
     const mk = mkt();
     const mktCtx = `Market: ${mk.aiMarketContext} Benchmark: ${mk.benchmark}. Currency: ${mk.currencyCode} (${mk.currency}).`;
+    const sd = currentStockData && ticker && currentStockData.ticker.replace(/\.(ST|L)$/,'') === ticker.toUpperCase() ? currentStockData : null;
     if (sd) return `Stock: ${sd.ticker} (${sd.name}), Current Price: ${fmtCurrency(sd.price)}, Change: ${sd.change>=0?'+':''}${Number(sd.change).toFixed(2)} (${Number(sd.pct).toFixed(2)}%), ${mktCtx} Date: March 2026`;
-    return `Stock: ${ticker}, ${mktCtx} Date: March 2026`;
+    return ticker ? `Stock/Focus: ${ticker}, ${mktCtx} Date: March 2026` : `${mktCtx} Date: March 2026`;
   })();
 
   try {
@@ -3912,16 +4436,13 @@ async function retryModule(resultIdx) {
       parsed = JSON.parse(jsonStr);
     } catch(pe) { throw new Error('JSON parse failed'); }
 
-    // Update the results array
     frLastResults[resultIdx] = { ...r, parsed, error: null };
 
-    // Patch the chapter header — remove error state and retry button
     if (chapterEl) {
       chapterEl.style.borderColor = '';
       chapterEl.classList.remove('fr-chapter-error');
       const headerEl = chapterEl.querySelector('.full-report-chapter-header');
       if (headerEl) {
-        // Remove error span and retry button
         const errSpan = headerEl.querySelector('.fr-error-span');
         if (errSpan) errSpan.remove();
         const oldBtn = headerEl.querySelector('.btn-retry-module');
@@ -3929,15 +4450,12 @@ async function retryModule(resultIdx) {
       }
     }
 
-    // Patch the chapter body with real content
     if (chapterBody) {
-      chapterBody.innerHTML = renderReportInner(parsed, r.mod, ticker);
+      chapterBody.innerHTML = renderReportInner(parsed, r.mod, '');
     }
 
-    // Recalculate and update master summary
-    refreshMasterSummary(ticker, frLastParams.fr_risk, frLastParams.fr_horizon);
+    refreshMasterSummary();
 
-    // Re-save to cache with updated HTML
     const outputEl = document.getElementById('aiOutput');
     if (outputEl && reportCache[-1]) {
       reportCache[-1].html = outputEl.innerHTML;
@@ -3947,11 +4465,7 @@ async function retryModule(resultIdx) {
     showToast(`✓ ${r.fm.name} — retry successful`);
 
   } catch(e) {
-    // Retry failed again — restore the button
-    if (retryBtn) {
-      retryBtn.disabled = false;
-      retryBtn.innerHTML = '↺ Retry';
-    }
+    if (retryBtn) { retryBtn.disabled = false; retryBtn.innerHTML = '↺ Retry'; }
     if (chapterEl) chapterEl.style.borderColor = '';
     showToast(`❌ Retry failed: ${e.message.slice(0,50)}`);
   }
@@ -3959,18 +4473,17 @@ async function retryModule(resultIdx) {
   frRunning = false;
 }
 
-// Recalculate master summary in-place after a successful retry
-function refreshMasterSummary(ticker, risk, horizon) {
+function refreshMasterSummary() {
   const summaryEl = document.getElementById('masterSummary');
   if (!summaryEl) return;
   try {
-    const summaryData = buildMasterSummary(frLastResults, ticker, risk, horizon);
-    summaryEl.outerHTML = renderMasterSummary(summaryData, ticker);
+    const summaryData = buildMasterSummary(frLastResults, frLastResults.length);
+    summaryEl.outerHTML = renderMasterSummary(summaryData);
   } catch(e) {}
 }
 
-function buildProgressUI(ticker) {
-  const steps = FULL_REPORT_MODULES.map((fm, i) =>
+function buildProgressUI(modulesToRun) {
+  const steps = modulesToRun.map((fm, i) =>
     `<div class="fr-step" id="fr-step-${i}">
       <div class="fr-step-icon">${fm.icon}</div>
       <div class="fr-step-name">${fm.name}</div>
@@ -3978,11 +4491,12 @@ function buildProgressUI(ticker) {
     </div>`
   ).join('');
 
+  const label = modulesToRun.length === 1 ? '1 module selected' : `${modulesToRun.length} modules selected`;
   return `<div class="full-report-progress">
     <div class="full-report-progress-header">
       <div>
-        <div class="full-report-progress-title">⚡ Running Full Intelligence Report — ${ticker}</div>
-        <div class="full-report-progress-sub">Querying all analysis modules sequentially · Please wait</div>
+        <div class="full-report-progress-title">⚡ Running Full Intelligence Report</div>
+        <div class="full-report-progress-sub">${label} · Running sequentially · Please wait</div>
         <div class="full-report-overall-bar"><div class="full-report-overall-bar-fill" id="frOverallBar"></div></div>
       </div>
     </div>
@@ -4016,7 +4530,7 @@ function updateOverallBar(done, total) {
   if (bar) bar.style.width = `${Math.round((done/total)*100)}%`;
 }
 
-function buildMasterSummary(results, ticker, risk, horizon) {
+function buildMasterSummary(results, moduleCount) {
   let buys = 0, holds = 0, sells = 0, neutrals = 0;
   const verdicts = [];
   results.forEach(r => {
@@ -4032,15 +4546,16 @@ function buildMasterSummary(results, ticker, risk, horizon) {
 
   let overall = 'MIXED';
   let overallCls = 'hold';
-  if (buys >= 5)      { overall = 'STRONG BUY';  overallCls = 'buy'; }
-  else if (buys >= 3) { overall = 'BUY';          overallCls = 'buy'; }
-  else if (sells >= 3){ overall = 'SELL / CAUTION'; overallCls = 'sell'; }
-  else if (holds >= 3){ overall = 'HOLD / NEUTRAL'; overallCls = 'hold'; }
+  const total = buys + holds + sells + neutrals;
+  if (buys >= Math.ceil(total * 0.7))      { overall = 'STRONG BUY';     overallCls = 'buy'; }
+  else if (buys > holds + sells)            { overall = 'BUY';            overallCls = 'buy'; }
+  else if (sells >= Math.ceil(total * 0.5)){ overall = 'SELL / CAUTION'; overallCls = 'sell'; }
+  else if (holds >= Math.ceil(total * 0.5)){ overall = 'HOLD / NEUTRAL'; overallCls = 'hold'; }
 
-  return { buys, holds, sells, neutrals, overall, overallCls, verdicts, ticker, risk, horizon };
+  return { buys, holds, sells, neutrals, overall, overallCls, verdicts, moduleCount };
 }
 
-function renderMasterSummary(s, ticker) {
+function renderMasterSummary(s) {
   const now = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
   const verdictRows = s.verdicts.map(v => {
@@ -4049,8 +4564,8 @@ function renderMasterSummary(s, ticker) {
   }).join('');
 
   return `<div class="master-summary" id="masterSummary">
-    <div class="master-summary-title">🎯 Master Consensus — ${ticker}</div>
-    <div class="master-summary-sub">Synthesized across ${s.verdicts.length} institutional analysis modules · ${now}</div>
+    <div class="master-summary-title">🎯 Master Consensus</div>
+    <div class="master-summary-sub">Synthesized across ${s.verdicts.length} of ${s.moduleCount} modules ran · ${now}</div>
     <div class="consensus-row">
       <div class="consensus-badge buy-count">
         <div class="consensus-badge-label">Bullish</div>
@@ -4074,20 +4589,17 @@ function renderMasterSummary(s, ticker) {
       <tbody>${verdictRows}</tbody>
     </table>
     <div style="font-size:9px;color:var(--text3);margin-top:10px;font-style:italic;">
-      Parameters: Risk Tolerance — ${s.risk} · Horizon — ${s.horizon} · AI-generated · Not financial advice
+      AI-generated · Not financial advice
     </div>
   </div>`;
 }
 
-function renderFullReportOutput(results, masterHTML, ticker) {
+function renderFullReportOutput(results, masterHTML) {
   const outputEl = document.getElementById('aiOutput');
 
   let html = `<div class="report" id="reportContent">`;
-
-  // Master summary at top
   html += masterHTML;
 
-  // Each module chapter
   results.forEach((r, i) => {
     const hasFailed = !!r.error;
     const chapterBorderStyle = hasFailed ? 'border-color: rgba(255,69,96,0.35);' : '';
@@ -4104,7 +4616,7 @@ function renderFullReportOutput(results, masterHTML, ticker) {
       <div class="full-report-chapter-body" id="fr-chapter-body-${i}">`;
 
     if (r.parsed) {
-      html += renderReportInner(r.parsed, r.mod, ticker);
+      html += renderReportInner(r.parsed, r.mod, '');
     } else {
       html += `<div style="color:var(--text3);font-size:11px;padding:10px 0;">Analysis unavailable — click <strong style="color:var(--red)">↺ Retry</strong> to attempt again.</div>`;
     }
@@ -4114,7 +4626,7 @@ function renderFullReportOutput(results, masterHTML, ticker) {
 
   html += `<div class="report-divider"></div>
     <div style="font-size:9px;color:var(--text3);text-align:center;padding:4px 0;letter-spacing:0.05em;">
-      Full Intelligence Report · APEX Terminal · AI-generated · Not financial advice · Always conduct your own research
+      Full Intelligence Report · APEX Terminal · AI-generated · Not financial advice
     </div>
   </div>`;
 
@@ -4191,7 +4703,7 @@ function selectModule(idx, el) {
   if (idx === -1) {
     // Full Intelligence Report mode
     document.getElementById('aiModuleTitle').textContent = '⚡ Full Intelligence Report';
-    document.getElementById('aiModuleSub').textContent   = 'All 7 modules run sequentially · Master consensus summary generated';
+    document.getElementById('aiModuleSub').textContent   = 'Fill in any modules you want — only those with data will run · Master consensus summary generated';
     renderFullReportParams();
 
     // Restore cached full report if one exists
@@ -4204,9 +4716,9 @@ function selectModule(idx, el) {
       toolbar.style.display = 'none';
       outputEl.innerHTML = `<div class="ai-placeholder">
         <div class="ai-placeholder-icon">⚡</div>
-        <div class="ai-placeholder-text">Enter a ticker and click <strong>Run Full Report</strong> to get a complete multi-module analysis in one go.<br><br>
-        <span style="color:var(--amber);font-size:10px;">Runs 7 analysis modules sequentially · Takes ~60–90 seconds · Generates master consensus summary</span>
-        ${currentTicker ? `<br><br><span style="color:var(--green);font-size:10px;">● ${currentTicker} loaded — ticker auto-filled</span>` : ''}
+        <div class="ai-placeholder-text">Fill in the modules you want to run above, then click <strong>Run Full Report</strong>.<br><br>
+        <span style="color:var(--amber);font-size:10px;">Only modules with required fields filled will run · Up to 10 modules · Generates master consensus summary</span>
+        ${currentTicker ? `<br><br><span style="color:var(--green);font-size:10px;">● ${currentTicker.replace(/\.(ST|L)$/,'')} loaded — ticker fields auto-filled</span>` : ''}
         </div></div>`;
     }
     return;
@@ -4931,7 +5443,7 @@ const MACRO_DATA = {
     ratesTitle: 'US Indices & Rates',
     ratesRows: [
       ['S&P 500','SPY'],['NASDAQ 100','QQQ'],['Dow Jones','DIA'],
-      ['Gold','GLD'],['WTI Oil','USO'],['BTC/USD','BTC-USD'],
+      ['Gold','GC=F'],['WTI Oil','CL=F'],['BTC/USD','BTC-USD'],
     ]
   },
   SE: {
@@ -5049,6 +5561,326 @@ function syncAIWithStock(ticker, name, price, change, pct) {
   if (ptEl) ptEl.value = ticker;
   const frEl = document.getElementById('fr_ticker');
   if (frEl) frEl.value = ticker;
+}
+
+// ============================================================
+// APEX CHATBOT — Context-aware AI assistant
+// ============================================================
+
+let chatOpen      = false;
+let chatExpanded  = false;
+let chatMinimised = false;
+let chatLoading   = false;
+
+// Persist messages in localStorage
+const CHAT_STORAGE_KEY = 'apex_chat_history';
+
+function chatLoadHistory() {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+function chatSaveHistory(msgs) {
+  try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(msgs)); } catch(e) {}
+}
+
+// Chat message store — restored from localStorage or fresh
+let chatMessages = chatLoadHistory() || [{
+  role: 'assistant',
+  content: "Hi! I'm your APEX AI Assistant. I'm aware of everything in your terminal — loaded stocks, reports you've run, your portfolio, and the active market.\n\nAsk me anything.",
+  id: 'init-1'
+}];
+
+// ── Build context string from current terminal state ──
+function buildChatContext() {
+  const mk = mkt();
+  let ctx = `You are APEX AI, an institutional-grade financial assistant embedded in the APEX Terminal app.
+Active market: ${mk.flag} ${mk.label} (${mk.currencyCode}).
+Today's date: ${new Date().toLocaleDateString('en-GB', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}.
+`;
+
+  // Loaded stock
+  if (currentStockData && currentStockData.ticker) {
+    const sd = currentStockData;
+    ctx += `\nCurrently loaded stock: ${sd.ticker} (${sd.name || sd.ticker})`;
+    if (sd.price) ctx += `, Price: ${fmtCurrency(sd.price)}`;
+    if (sd.change != null) ctx += `, Change: ${sd.change >= 0 ? '+' : ''}${Number(sd.change).toFixed(2)} (${Number(sd.pct || 0).toFixed(2)}%)`;
+    ctx += '.';
+  }
+
+  // Portfolio
+  if (portfolio && portfolio.length) {
+    const totalVal  = portfolio.reduce((s,r) => s + r.currentPrice * r.shares, 0);
+    const totalCost = portfolio.reduce((s,r) => s + r.cost * r.shares, 0);
+    const gain      = totalVal - totalCost;
+    const gainPct   = totalCost > 0 ? (gain / totalCost * 100).toFixed(1) : 0;
+    ctx += `\n\nPortfolio (${portfolio.length} positions, total ${fmtCurrency(totalVal)}, ${gain >= 0 ? '+' : ''}${fmtCurrency(gain)} / ${gain >= 0 ? '+' : ''}${gainPct}%):`;
+    portfolio.forEach(r => {
+      const val  = r.currentPrice * r.shares;
+      const gl   = (r.currentPrice - r.cost) * r.shares;
+      const glPct = r.cost > 0 ? ((r.currentPrice - r.cost) / r.cost * 100).toFixed(1) : 0;
+      ctx += `\n  • ${r.ticker}: ${r.shares} shares @ avg ${fmtCurrency(r.cost)}, now ${fmtCurrency(r.currentPrice)} (${gl >= 0 ? '+' : ''}${fmtCurrency(gl)} / ${gl >= 0 ? '+' : ''}${glPct}%)`;
+    });
+  }
+
+  // Last AI report
+  const reportEl = document.getElementById('reportContent');
+  if (reportEl && reportEl.innerText && reportEl.innerText.trim().length > 50) {
+    const reportText = reportEl.innerText.replace(/\n{3,}/g, '\n\n').trim().slice(0, 4000);
+    ctx += `\n\nMost recent AI report (summarised):\n${reportText}`;
+  }
+
+  ctx += `\n\nAnswer concisely and insightfully. Use bullet points for lists. Reference specific numbers from the context when relevant. If asked about something not in the context, use your general financial knowledge but note it's not from the current session data.`;
+
+  return ctx;
+}
+
+// ── Render a single message bubble ──
+function renderChatMessage(msg) {
+  const wrap = document.createElement('div');
+  wrap.className = `chat-msg-wrap ${msg.role}`;
+  wrap.id = `chat-msg-${msg.id}`;
+
+  if (msg.role === 'assistant') {
+    const label = document.createElement('div');
+    label.className = 'chat-msg-label';
+    label.textContent = 'APEX AI';
+    wrap.appendChild(label);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble ${msg.role}${msg.isError ? ' error' : ''}`;
+
+  if (msg.typing) {
+    bubble.innerHTML = `<div class="chat-typing"><span></span><span></span><span></span></div>`;
+  } else {
+    bubble.innerHTML = chatRenderMarkdown(msg.content);
+  }
+
+  wrap.appendChild(bubble);
+  return wrap;
+}
+
+// ── Simple markdown renderer ──
+function chatRenderMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/^### (.+)$/gm, '<strong style="color:var(--green);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;">$1</strong>')
+    .replace(/^## (.+)$/gm, '<strong style="color:var(--text);font-size:13px;">$1</strong>')
+    .replace(/^# (.+)$/gm,  '<strong style="color:var(--text);font-size:14px;">$1</strong>')
+    .replace(/^\s*[-•]\s+(.+)$/gm, '<div style="padding-left:12px;position:relative;color:var(--text2);"><span style="position:absolute;left:0;color:var(--green);">▸</span>$1</div>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+// ── Render all messages ──
+function renderAllChatMessages() {
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
+  container.innerHTML = '';
+  chatMessages.forEach(msg => {
+    container.appendChild(renderChatMessage(msg));
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+// ── Update context pills ──
+function updateChatPills() {
+  const pillsEl = document.getElementById('chatPills');
+  if (!pillsEl) return;
+  const pills = [];
+  const mk = mkt();
+  pills.push(`${mk.flag} ${mk.code}`);
+  if (currentStockData?.ticker) {
+    pills.push(currentStockData.ticker.replace(/\.(ST|L)$/, ''));
+  }
+  if (portfolio?.length) {
+    pills.push(`Portfolio: ${portfolio.length} stocks`);
+  }
+  const reportEl = document.getElementById('reportContent');
+  if (reportEl?.innerText?.trim().length > 50) {
+    pills.push('Report loaded');
+  }
+  pillsEl.innerHTML = pills.map(p => `<span class="chat-pill">${p}</span>`).join('');
+}
+
+// ── Update suggested prompts based on context ──
+function updateChatSuggestions() {
+  const el = document.getElementById('chatSuggestions');
+  if (!el || chatMessages.length > 3) { if(el) el.style.display='none'; return; }
+  el.style.display = 'flex';
+
+  const suggestions = [];
+  if (currentStockData?.ticker) {
+    const t = currentStockData.ticker.replace(/\.(ST|L)$/, '');
+    suggestions.push(`Summarise the analysis for ${t}`);
+    suggestions.push(`What are the key risks for ${t}?`);
+    suggestions.push(`Is ${t} a buy right now?`);
+  } else {
+    suggestions.push('What stocks should I look at today?');
+    suggestions.push('Explain P/E ratio in simple terms');
+  }
+  if (portfolio?.length) suggestions.push('How is my portfolio performing?');
+
+  el.innerHTML = suggestions.slice(0,3).map(s =>
+    `<button class="chat-suggest-btn" onclick="useSuggestion(this)">${s}</button>`
+  ).join('');
+}
+
+function useSuggestion(btn) {
+  document.getElementById('chatInput').value = btn.textContent;
+  document.getElementById('chatSuggestions').style.display = 'none';
+  sendChat();
+}
+
+// ── Send message ──
+async function sendChat() {
+  if (chatLoading || !anthropicKey) {
+    if (!anthropicKey) { showToast('⚠ Add Anthropic API key in ⚙ Settings'); openSettings(); }
+    return;
+  }
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  document.getElementById('chatSuggestions').style.display = 'none';
+
+  // Add user message
+  const userMsg = { role: 'user', content: text, id: Date.now() + '-u' };
+  chatMessages.push(userMsg);
+  chatSaveHistory(chatMessages);
+
+  const container = document.getElementById('chatMessages');
+  container.appendChild(renderChatMessage(userMsg));
+
+  // Add typing indicator
+  const typingId = Date.now() + '-typing';
+  const typingMsg = { role: 'assistant', content: '', id: typingId, typing: true };
+  const typingEl = renderChatMessage(typingMsg);
+  container.appendChild(typingEl);
+  container.scrollTop = container.scrollHeight;
+
+  chatLoading = true;
+  document.getElementById('chatSendBtn').disabled = true;
+
+  // Build message history for API (last 20 messages)
+  const history = chatMessages
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .slice(-20)
+    .map(m => ({ role: m.role, content: m.content }));
+
+  try {
+    const systemPrompt = buildChatContext();
+    const res = await anthropicFetch(anthropicKey, {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: history
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+
+    const reply = data.content?.[0]?.text || 'Sorry, I could not generate a response.';
+
+    // Remove typing indicator, add real response
+    typingEl.remove();
+    const assistantMsg = { role: 'assistant', content: reply, id: Date.now() + '-a' };
+    chatMessages.push(assistantMsg);
+    chatSaveHistory(chatMessages);
+    container.appendChild(renderChatMessage(assistantMsg));
+
+    // Update badge if minimised
+    if (chatMinimised) {
+      const msgCount = chatMessages.filter(m => m.role === 'user').length;
+      document.getElementById('chatMinSub').textContent = `${msgCount} message${msgCount !== 1 ? 's' : ''} · click to expand`;
+    }
+
+  } catch(e) {
+    typingEl.remove();
+    const errMsg = { role: 'assistant', content: `Error: ${e.message}`, id: Date.now() + '-err', isError: true };
+    chatMessages.push(errMsg);
+    chatSaveHistory(chatMessages);
+    container.appendChild(renderChatMessage(errMsg));
+  }
+
+  chatLoading = false;
+  document.getElementById('chatSendBtn').disabled = false;
+  container.scrollTop = container.scrollHeight;
+  updateChatPills();
+}
+
+// ── Panel controls ──
+function openChat() {
+  chatOpen = true;
+  chatMinimised = false;
+  document.getElementById('chatPanel').style.display   = 'flex';
+  document.getElementById('chatTrigger').style.display = 'none';
+  document.getElementById('chatMinimised').style.display = 'none';
+  renderAllChatMessages();
+  updateChatPills();
+  updateChatSuggestions();
+  setTimeout(() => document.getElementById('chatInput').focus(), 100);
+}
+
+function closeChat() {
+  chatOpen = false;
+  chatMinimised = false;
+  document.getElementById('chatPanel').style.display     = 'none';
+  document.getElementById('chatMinimised').style.display = 'none';
+  document.getElementById('chatTrigger').style.display   = 'flex';
+}
+
+function minimiseChat() {
+  chatMinimised = true;
+  document.getElementById('chatPanel').style.display     = 'none';
+  document.getElementById('chatTrigger').style.display   = 'none';
+  document.getElementById('chatMinimised').style.display = 'flex';
+  const msgCount = chatMessages.filter(m => m.role === 'user').length;
+  document.getElementById('chatMinSub').textContent = `${msgCount} message${msgCount !== 1 ? 's' : ''} · click to expand`;
+}
+
+function unminimiseChat() {
+  chatMinimised = false;
+  document.getElementById('chatMinimised').style.display = 'none';
+  document.getElementById('chatPanel').style.display     = 'flex';
+  renderAllChatMessages();
+  updateChatPills();
+}
+
+function toggleExpand() {
+  chatExpanded = !chatExpanded;
+  const panel  = document.getElementById('chatPanel');
+  const btn    = document.getElementById('chatExpandBtn');
+  panel.classList.toggle('expanded', chatExpanded);
+  btn.textContent = chatExpanded ? '⇥' : '⇤';
+  btn.title       = chatExpanded ? 'Collapse' : 'Expand';
+}
+
+function clearChat() {
+  chatMessages = [{
+    role: 'assistant',
+    content: 'Chat cleared. How can I help?',
+    id: Date.now() + '-clr'
+  }];
+  chatSaveHistory(chatMessages);
+  renderAllChatMessages();
+  updateChatSuggestions();
+  updateChatPills();
+}
+
+// ── "Ask about this report" helper — called from report toolbar ──
+function askAboutReport() {
+  openChat();
+  setTimeout(() => {
+    document.getElementById('chatInput').value = 'Summarise the key findings from the report I just ran and give me your top 3 takeaways.';
+    document.getElementById('chatInput').focus();
+  }, 200);
 }
 
 // ============================================================
