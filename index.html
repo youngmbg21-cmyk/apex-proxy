@@ -2069,7 +2069,7 @@ tbody tr:last-child td { border-bottom:none; }
         <div style="font-size:9px;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;padding:4px 2px;margin-bottom:4px;">Stock Analysis</div>
         <div class="ai-module-btn full-report" onclick="selectModule(-1,this)">
           <div class="ai-module-icon">⚡</div>
-          <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">All stock modules · Master summary</div></div>
+          <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">Up to 6 stock modules · You choose · Master summary</div></div>
         </div>
         <div class="full-report-divider"></div>
         <div class="ai-module-btn active" onclick="selectModule(0,this)">
@@ -2931,7 +2931,7 @@ let activeModule = 0;
 const reportCache = {};
 
 // ── Full Report persistent state ──
-let frLastParams   = null;   // { fr_ticker, fr_risk, fr_horizon } from last run
+let frLastParams   = null;   // legacy — kept for retry compatibility
 let frLastResults  = [];     // array of { fm, mod, parsed, error } — mutable for retries
 let frRunning      = false;  // guard against concurrent runs
 
@@ -3776,17 +3776,17 @@ const TV_RANGE_MAP = {
 
 function toTradingViewSymbol(ticker) {
   if (ticker.endsWith('.ST')) {
-    // Swedish Nasdaq Stockholm — TradingView uses NASDAQ: prefix
-    // VOLV-B.ST → NASDAQ:VOLVB
+    // Nasdaq Stockholm — TradingView uses OMXSTO: prefix
+    // VOLV-B.ST → OMXSTO:VOLVB
     const base = ticker.replace('.ST', '').replace(/-/g, '');
-    return `NASDAQ:${base}`;
+    return `OMXSTO:${base}`;
   }
   if (ticker.endsWith('.L')) {
     // London Stock Exchange
     const base = ticker.replace('.L', '');
     return `LSE:${base}`;
   }
-  // US stocks — return as-is
+  // US stocks — return as-is, TradingView auto-resolves exchange
   return ticker;
 }
 
@@ -4324,28 +4324,20 @@ async function anthropicFetch(key, body) {
 const FR_REQUIRED = {
   0: ['p_ticker'],                      // Goldman
   1: ['p_ticker'],                      // Morgan Stanley
-  2: ['p_portfolio', 'p_value'],        // Bridgewater
   3: ['p_ticker'],                      // JPMorgan (p_date optional)
-  4: ['p_age', 'p_amount'],             // BlackRock
   5: ['p_ticker'],                      // Citadel
-  6: ['p_amount', 'p_goal'],            // Harvard Dividend
   7: ['p_sector'],                      // Bain
   8: ['p_ticker'],                      // Renaissance
-  9: ['p_holdings'],                    // McKinsey
 };
 
 // Which modules to include and their icons — now ALL 10
 const FULL_REPORT_MODULES = [
   { idx: 0, icon: '📊', name: 'Goldman Sachs Screener' },
   { idx: 1, icon: '🏦', name: 'Morgan Stanley DCF' },
-  { idx: 2, icon: '⚠️', name: 'Bridgewater Risk Assessment' },
   { idx: 3, icon: '📋', name: 'JPMorgan Earnings Analysis' },
-  { idx: 4, icon: '🏗️', name: 'BlackRock Portfolio Builder' },
   { idx: 5, icon: '📉', name: 'Citadel Technical Analysis' },
-  { idx: 6, icon: '💰', name: 'Harvard Dividend Strategy' },
   { idx: 7, icon: '🔍', name: 'Bain Competitive Analysis' },
   { idx: 8, icon: '🔢', name: 'Renaissance Pattern Finder' },
-  { idx: 9, icon: '🌍', name: 'McKinsey Macro Impact' },
 ];
 
 function renderFullReportParams() {
@@ -4955,35 +4947,6 @@ function renderAIParams(m) {
   }).join('');
   html += `<button class="btn-analyze" onclick="runAnalysis()">▶ Analyze</button>`;
   container.innerHTML = html;
-  checkKeyWarning();
-}
-
-function renderFullReportParams() {
-  const container = document.getElementById('aiParams');
-  const autoTicker = currentTicker || '';
-  container.innerHTML = `
-    <div class="param-group">
-      <div class="param-label">Stock Ticker</div>
-      <input class="param-input" id="fr_ticker" placeholder="e.g. AAPL" type="text" value="${autoTicker}" style="text-transform:uppercase;">
-    </div>
-    <div class="param-group">
-      <div class="param-label">Risk Tolerance</div>
-      <select class="param-select" id="fr_risk">
-        <option value="Conservative">Conservative</option>
-        <option value="Moderate" selected>Moderate</option>
-        <option value="Aggressive">Aggressive</option>
-      </select>
-    </div>
-    <div class="param-group">
-      <div class="param-label">Time Horizon</div>
-      <select class="param-select" id="fr_horizon">
-        <option value="Short-term (3-6mo)">Short-term (3-6mo)</option>
-        <option value="Medium (1-3yr)" selected>Medium (1-3yr)</option>
-        <option value="Long-term (5yr+)">Long-term (5yr+)</option>
-      </select>
-    </div>
-    <button class="btn-analyze" onclick="runFullReport()" style="background:var(--amber);color:var(--bg);">⚡ Run Full Report</button>
-  `;
   checkKeyWarning();
 }
 
