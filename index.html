@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4631,66 +4630,56 @@ const FULL_REPORT_MODULES = [
 
 function renderFullReportParams() {
   const container = document.getElementById('aiParams');
-  const autoTicker = currentTicker ? currentTicker.replace(/\.(ST|L)$/, '') : '';
 
-  // Build one collapsible section per module
-  const sections = FULL_REPORT_MODULES.map(fm => {
-    const mod = MODULES[fm.idx];
-    const required = FR_REQUIRED[fm.idx] || [];
+  // Build status rows reading from individual module fields (p_ticker etc.)
+  const rows = FULL_REPORT_MODULES.map(fm => {
+    const mod  = MODULES[fm.idx];
+    const ready = isFRModuleReady(fm.idx);
 
-    const fields = mod.params.map(p => {
-      // Auto-fill any field that relates to a stock ticker or holdings
-      let autoVal = '';
-      if (autoTicker) {
-        if (p.id === 'p_ticker')    autoVal = autoTicker;
-        if (p.id === 'p_portfolio') autoVal = `100% ${autoTicker}`;
-        if (p.id === 'p_holdings')  autoVal = `${autoTicker} stock`;
-      }
+    // Preview of what's filled in the individual module panel
+    const params = getFRParams(fm.idx);
+    const filledFields = mod.params
+      .filter(p => p.type !== 'select' && params[p.id])
+      .map(p => `<span style="color:var(--text2)">${params[p.id]}</span>`)
+      .join(' · ');
 
-      if (p.type === 'select') {
-        const opts = p.options.map(o => `<option value="${o}">${o}</option>`).join('');
-        return `<div class="param-group">
-          <div class="param-label">${p.label}</div>
-          <select class="param-select" id="fr_${fm.idx}_${p.id}">
-            <option value="">${p.label}</option>
-            ${opts}
-          </select>
-        </div>`;
-      }
-      const isRequired = required.includes(p.id);
-      return `<div class="param-group">
-        <div class="param-label">${p.label}${isRequired ? ' <span style="color:var(--green)">*</span>' : ' <span style="color:var(--text3);font-size:8px;">optional</span>'}</div>
-        <input class="param-input" id="fr_${fm.idx}_${p.id}" placeholder="${p.placeholder || ''}" type="text" value="${autoVal}" oninput="updateFRModuleStatus(${fm.idx})">
-      </div>`;
-    }).join('');
+    const statusColor = ready ? 'var(--green)' : 'var(--text3)';
+    const borderColor = ready ? 'rgba(0,255,136,0.25)' : 'var(--border)';
+    const statusText  = ready ? '✓ WILL RUN' : '○ SKIP';
 
-    return `<div class="fr-module-block" id="fr-block-${fm.idx}">
-      <div class="fr-module-block-header" onclick="toggleFRModule(${fm.idx})">
-        <span class="fr-module-block-icon">${fm.icon}</span>
-        <span class="fr-module-block-name">${fm.name}</span>
-        <span class="fr-module-block-firm" style="font-size:9px;color:var(--text3);flex:1;padding-left:6px;">${mod.sub.split(' ')[0]} ${mod.sub.split(' ')[1] || ''}</span>
-        <span class="fr-module-status" id="fr-status-${fm.idx}">○ Fill to include</span>
-        <span class="fr-module-chevron" id="fr-chevron-${fm.idx}">▼</span>
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid ${borderColor};border-radius:5px;">
+      <span style="font-size:14px;">${fm.icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:600;color:var(--text);">${fm.name}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${filledFields || '<span style="color:var(--text3)">Not filled — click module in sidebar to add data</span>'}
+        </div>
       </div>
-      <div class="fr-module-fields" id="fr-fields-${fm.idx}" style="display:none;">
-        ${fields}
-      </div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;color:${statusColor};">${statusText}</div>
     </div>`;
   }).join('');
 
+  const readyCount = FULL_REPORT_MODULES.filter(fm => isFRModuleReady(fm.idx)).length;
+  const readyMsg = readyCount === 0
+    ? '<div style="font-size:10px;color:var(--amber);margin-bottom:10px;">⚠ Fill in at least one module using the sidebar to run the Full Report.</div>'
+    : '<div style="font-size:10px;color:var(--green);margin-bottom:10px;">✓ ' + readyCount + ' module' + (readyCount > 1 ? 's' : '') + ' ready to run.</div>';
+  const runDisabled = readyCount === 0 ? 'disabled' : '';
+
+  const mk = mkt();
+  const stockHint = currentTicker
+    ? '<span style="color:var(--green);font-weight:600;">' + currentTicker.replace(/\.(ST|L)$/, '') + ' loaded</span> — ticker fields auto-filled in each module.'
+    : 'Load a stock first, then fill in modules using the sidebar.';
+
   container.innerHTML = `
     <div style="font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.6;">
-      Fill in any modules you want to include. Modules with a <span style="color:var(--green)">*</span> required field filled will run automatically — others are skipped.
-      <br><span style="color:var(--green);font-weight:600;">Ticker fields auto-fill</span> from the loaded stock.
+      ${stockHint}<br>
+      Fill in individual modules using the sidebar on the left — then run the full report below.
+      Modules with data will run automatically.
     </div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;" id="frModuleBlocks">
-      ${sections}
-    </div>
-    <button class="btn-analyze" onclick="runFullReport()" style="background:var(--amber);color:var(--bg);">⚡ Run Full Report</button>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${rows}</div>
+    ${readyMsg}
+    <button class="btn-analyze" onclick="runFullReport()" style="background:var(--amber);color:var(--bg);" ${runDisabled}>⚡ Run Full Report</button>
   `;
-
-  // Set initial status for each module
-  FULL_REPORT_MODULES.forEach(fm => updateFRModuleStatus(fm.idx));
   checkKeyWarning();
 }
 
@@ -4736,11 +4725,13 @@ function updateFRModuleStatus(idx) {
 }
 
 // Collect params for a module from the FR fields
+// Read params from individual module panel — single source of truth
 function getFRParams(idx) {
   const mod = MODULES[idx];
   const params = {};
   mod.params.forEach(p => {
-    const el = document.getElementById(`fr_${idx}_${p.id}`);
+    // Read from the individual module panel field (same as when running single module)
+    const el = document.getElementById(p.id);
     if (el) params[p.id] = el.value.trim();
   });
   return params;
@@ -6371,8 +6362,6 @@ Date: March 2026.`;
   if (btn) { btn.disabled = false; btn.innerHTML = '▶ Analyze'; }
 }
 
-// Full Wealth Report params — show all 4 modules with fields
-function renderWealthReportParams() {
 // Full Wealth Report — reads from the individual module panels (w_${idx}_*)
 // No duplicate input forms — uses what's already filled in the sidebar modules
 function renderWealthReportParams() {
@@ -6408,6 +6397,10 @@ function renderWealthReportParams() {
   }).join('');
 
   const readyCount = WEALTH_MODULE_INDICES.filter(idx => isWRModuleReady(idx)).length;
+  const readyMsg = readyCount === 0
+    ? '<div style="font-size:10px;color:var(--amber);margin-bottom:10px;">⚠ Fill in at least one module using the sidebar to run the Full Wealth Report.</div>'
+    : '<div style="font-size:10px;color:var(--green);margin-bottom:10px;">✓ ' + readyCount + ' module' + (readyCount > 1 ? 's' : '') + ' ready to run.</div>';
+  const runDisabled = readyCount === 0 ? 'disabled' : '';
 
   container.innerHTML = `
     <div style="font-size:10px;color:var(--text3);margin-bottom:12px;line-height:1.6;">
@@ -6415,11 +6408,8 @@ function renderWealthReportParams() {
       Modules with data will run automatically.
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${rows}</div>
-    ${readyCount === 0
-      ? `<div style="font-size:10px;color:var(--amber);margin-bottom:10px;">⚠ Fill in at least one module using the sidebar to run the Full Wealth Report.</div>`
-      : `<div style="font-size:10px;color:var(--green);margin-bottom:10px;">✓ ${readyCount} module${readyCount > 1 ? 's' : ''} ready to run.</div>`
-    }
-    <button class="btn-analyze" onclick="runFullWealthReport()" style="background:linear-gradient(135deg,#7B2FFF,#4F46E5);color:#fff;" ${readyCount === 0 ? 'disabled' : ''}>💎 Run Full Wealth Report</button>
+    ${readyMsg}
+    <button class="btn-analyze" onclick="runFullWealthReport()" style="background:linear-gradient(135deg,#7B2FFF,#4F46E5);color:#fff;" ${runDisabled}>💎 Run Full Wealth Report</button>
   `;
   updateWealthBanner();
 }
