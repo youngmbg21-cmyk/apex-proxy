@@ -2086,7 +2086,7 @@ tbody tr:last-child td { border-bottom:none; }
 
         <div class="ai-module-btn full-report" onclick="selectModule(-1,this)">
           <div class="ai-module-icon">⚡</div>
-          <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">Up to 6 stock modules · You choose · Master summary</div></div>
+          <div class="ai-module-info"><div class="ai-module-name">Full Intelligence Report</div><div class="ai-module-firm">Up to 5 stock modules · You choose · Master summary</div></div>
         </div>
         <div class="full-report-divider"></div>
         <div class="ai-module-btn active" onclick="selectModule(0,this)">
@@ -6509,6 +6509,13 @@ function getWealthParams(idx) {
   const mod = MODULES[idx];
   const params = {};
   mod.params.forEach(p => {
+    // Read from cache first — always populated when user fills fields and switches away
+    const cached = wealthParamsCache[`${idx}_${p.id}`];
+    if (cached) {
+      params[p.id] = cached;
+      return;
+    }
+    // Fall back to live DOM (only works when this module's panel is currently rendered)
     const el = document.getElementById(`w_${idx}_${p.id}`);
     if (el) params[p.id] = el.value.trim();
   });
