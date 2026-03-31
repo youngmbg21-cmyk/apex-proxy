@@ -461,7 +461,7 @@ body::after {
 /* Key metrics full row */
 .metrics-row {
   display:grid;
-  grid-template-columns:repeat(6,1fr);
+  grid-template-columns:repeat(3,1fr);
   gap:10px;
   grid-column: 1 / -1;
 }
@@ -4828,13 +4828,19 @@ function updateFRModuleStatus(idx) {
   }
 }
 
-// Collect params for a module from the FR fields
-// Read params from individual module panel — single source of truth
+// Collect params for a module — reads from cache (persisted when switching modules)
+// Falls back to live DOM if on that module currently
 function getFRParams(idx) {
   const mod = MODULES[idx];
   const params = {};
   mod.params.forEach(p => {
-    // Read from the individual module panel field (same as when running single module)
+    // First try cache (always populated when user fills fields and switches away)
+    const cached = aiParamsCache[`${idx}_${p.id}`];
+    if (cached) {
+      params[p.id] = cached;
+      return;
+    }
+    // Fall back to live DOM (only works when this module's panel is currently rendered)
     const el = document.getElementById(p.id);
     if (el) params[p.id] = el.value.trim();
   });
@@ -6881,6 +6887,58 @@ Today's date: ${new Date().toLocaleDateString('en-GB', {weekday:'long', year:'nu
     if (sd.price) ctx += `, Price: ${fmtCurrency(sd.price)}`;
     if (sd.change != null) ctx += `, Change: ${sd.change >= 0 ? '+' : ''}${Number(sd.change).toFixed(2)} (${Number(sd.pct || 0).toFixed(2)}%)`;
     ctx += '.';
+
+    // ── Stock stats panel (Open, Close, High, Low, 52W, Volume) ──
+    const statIds = {
+      'Open':       'sOpen',
+      'Prev Close': 'sPrevClose',
+      'Day High':   'sDayHigh',
+      'Day Low':    'sDayLow',
+      '52W High':   's52High',
+      '52W Low':    's52Low',
+      'Volume':     'sVolume',
+      'Avg Volume': 'sAvgVol',
+    };
+    const statParts = [];
+    Object.entries(statIds).forEach(([label, id]) => {
+      const val = document.getElementById(id)?.textContent?.trim();
+      if (val && val !== '--' && val !== '…') statParts.push(`${label}: ${val}`);
+    });
+    if (statParts.length) ctx += `\nStock stats: ${statParts.join(', ')}.`;
+
+    // ── KPI cards (Market Cap, P/E, EPS, Beta, Div Yield, Analyst Target) ──
+    const kpiIds = {
+      'Market Cap':     'mktCap',
+      'P/E Ratio':      'peRatio',
+      'EPS (TTM)':      'eps',
+      'Div Yield':      'divYield',
+      'Beta':           'beta',
+      'Analyst Target': 'analystTarget',
+    };
+    const kpiParts = [];
+    Object.entries(kpiIds).forEach(([label, id]) => {
+      const val = document.getElementById(id)?.textContent?.trim();
+      if (val && val !== '--' && val !== '…' && val !== '—') kpiParts.push(`${label}: ${val}`);
+    });
+    if (kpiParts.length) ctx += `\nFundamentals: ${kpiParts.join(', ')}.`;
+
+    // ── Annual Returns summary ──
+    const retIds = {
+      'retBest':   null,
+      'retWorst':  null,
+      'retAvg':    null,
+      'retPosPct': null,
+      'retCagr':   null,
+    };
+    const retParts = [];
+    Object.keys(retIds).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const val   = el.textContent?.trim();
+      const label = el.previousElementSibling?.textContent?.trim();
+      if (val && val !== '--' && label) retParts.push(`${label}: ${val}`);
+    });
+    if (retParts.length) ctx += `\nAnnual Returns: ${retParts.join(', ')}.`;
   }
 
   // ── Portfolio ──
@@ -6891,9 +6949,11 @@ Today's date: ${new Date().toLocaleDateString('en-GB', {weekday:'long', year:'nu
     const gainPct   = totalCost > 0 ? (gain / totalCost * 100).toFixed(1) : 0;
     ctx += `\n\nPortfolio (${portfolio.length} positions, total ${fmtCurrency(totalVal)}, ${gain >= 0 ? '+' : ''}${fmtCurrency(gain)} / ${gain >= 0 ? '+' : ''}${gainPct}%):`;
     portfolio.forEach(r => {
-      const gl    = (r.currentPrice - r.cost) * r.shares;
-      const glPct = r.cost > 0 ? ((r.currentPrice - r.cost) / r.cost * 100).toFixed(1) : 0;
-      ctx += `\n  • ${r.ticker}: ${r.shares} shares @ avg ${fmtCurrency(r.cost)}, now ${fmtCurrency(r.currentPrice)} (${gl >= 0 ? '+' : ''}${fmtCurrency(gl)} / ${gl >= 0 ? '+' : ''}${glPct}%)`;
+      const gl      = (r.currentPrice - r.cost) * r.shares;
+      const glPct   = r.cost > 0 ? ((r.currentPrice - r.cost) / r.cost * 100).toFixed(1) : 0;
+      const allocPct = totalVal > 0 ? ((r.currentPrice * r.shares / totalVal) * 100).toFixed(1) : 0;
+      ctx += `\n  • ${r.ticker}: ${r.shares} shares @ avg ${fmtCurrency(r.cost)}, now ${fmtCurrency(r.currentPrice)} (${gl >= 0 ? '+' : ''}${fmtCurrency(gl)} / ${gl >= 0 ? '+' : ''}${glPct}%) — ${allocPct}% of portfolio`;
+      if (r.entryDate) ctx += `, entered ${r.entryDate}`;
     });
   }
 
@@ -6933,13 +6993,68 @@ Today's date: ${new Date().toLocaleDateString('en-GB', {weekday:'long', year:'nu
     ctx += ` Typical platforms in ${wm.label}: ${wm.platforms}.`;
   } else if (activeTab === 'ai') {
     ctx += `\n\nThe user is in the AI Analysis tab viewing stock analysis modules.`;
-    if (activeModule >= 0) {
-      ctx += ` Currently selected module: ${MODULES[activeModule]?.title || 'Unknown'}.`;
+    if (activeModule >= 0 && MODULES[activeModule]) {
+      const mod = MODULES[activeModule];
+      ctx += ` Currently selected module: ${mod.title}.`;
+      // Include filled params for this module
+      const params = getFRParams(activeModule);
+      const filledParams = Object.entries(params).filter(([,v]) => v && v.length > 0);
+      if (filledParams.length) {
+        ctx += ` Module inputs: ${filledParams.map(([k,v]) => `${k.replace('p_','')}: "${v}"`).join(', ')}.`;
+      }
+    } else if (activeModule === -1) {
+      ctx += ` Currently viewing Full Intelligence Report.`;
+      // Show which modules are ready
+      const readyModules = FULL_REPORT_MODULES.filter(fm => isFRModuleReady(fm.idx)).map(fm => fm.name);
+      if (readyModules.length) ctx += ` Modules ready to run: ${readyModules.join(', ')}.`;
+    }
+
+    // Always include sector data on AI tab too
+    const sectors = mk.sectors || [];
+    if (sectors.length) {
+      ctx += `\n\nSector heatmap (${mk.benchmark} YTD): `;
+      ctx += sectors.map(s => `${s.name} ${s.val}`).join(', ') + '.';
     }
   } else if (activeTab === 'portfolio') {
     ctx += `\n\nThe user is viewing their Portfolio tracker.`;
   } else if (activeTab === 'macro') {
     ctx += `\n\nThe user is viewing the Macro dashboard for ${mk.flag} ${mk.label}.`;
+
+    // ── Sector heatmap data ──
+    const sectors = mk.sectors || [];
+    if (sectors.length) {
+      const sorted = [...sectors].sort((a,b) => b.raw - a.raw);
+      const topSectors = sorted.slice(0, 3).map(s => `${s.name} ${s.val}`).join(', ');
+      const botSectors = sorted.slice(-3).map(s => `${s.name} ${s.val}`).join(', ');
+      ctx += `\n\nSECTOR HEATMAP (${mk.benchmark} YTD performance):`;
+      sectors.forEach(s => {
+        ctx += `\n  ${s.name}: ${s.val} (${s.raw >= 0 ? 'up' : 'down'})`;
+      });
+      ctx += `\n  Best sectors: ${topSectors}`;
+      ctx += `\n  Worst sectors: ${botSectors}`;
+    }
+
+    // ── Live rates table ──
+    const ratesBody = document.getElementById('ratesBody');
+    if (ratesBody && ratesBody.innerText.trim().length > 10) {
+      ctx += `\n\nLIVE MARKET DATA (rates/indices table):`;
+      const rows = ratesBody.querySelectorAll('tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 2) {
+          ctx += `\n  ${cells[0]?.textContent?.trim()}: ${cells[1]?.textContent?.trim()} ${cells[2]?.textContent?.trim() || ''}`;
+        }
+      });
+    }
+  }
+
+  // ── Sector heatmap — always include if on overview or macro ──
+  if (activeTab === 'overview' || activeTab === 'macro') {
+    const sectors = mk.sectors || [];
+    if (sectors.length && activeTab === 'overview') {
+      ctx += `\n\nSector heatmap visible (${mk.benchmark} YTD): `;
+      ctx += sectors.map(s => `${s.name} ${s.val}`).join(', ') + '.';
+    }
   }
 
   ctx += `\n\nIMPORTANT: You have access to the actual report content above. When the user asks about "the report", "what this means", or "explain this" — refer to the specific numbers, verdicts and findings in the report content, not generic descriptions. Always cite specific figures from the report.`;
