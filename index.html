@@ -4327,13 +4327,13 @@ async function fetchFMPSummary(ticker, key) {
     industry:     d.industry          || '',
     exchange:     d.exchangeShortName || d.exchange || '',
     currency:     d.currency          || 'USD',
-    marketCap:    d.mktCap            || null,
-    peRatio:      d.pe                || null,
-    eps:          d.eps               || null,
-    beta:         d.beta              || null,
+    marketCap:    d.marketCap || d.mktCap   || null,
+    peRatio:      d.peRatio  || d.pe       || null,
+    eps:          d.eps                     || null,
+    beta:         d.beta                    || null,
     week52High,
     week52Low,
-    avgVolume10d: d.volAvg            || null,
+    avgVolume10d: d.volAvg   || d.volumeAvg || null,
     divYield:     d.lastDiv && d.price ? (d.lastDiv / d.price) : null,
     divRate:      d.lastDiv           || null,
     analystTarget: null, // not in profile endpoint
@@ -4427,10 +4427,20 @@ async function loadStock() {
       }
 
       // ── Tier 2: Yahoo browser-direct (avoids Netlify IP blocking) ──
-      if (!stats) {
+      // Also used to fill gaps when FMP is missing fields (e.g. analystTarget)
+      let yahooStats = null;
+      if (!stats || !stats.marketCap || !stats.analystTarget) {
         try {
-          stats = await fetchYahooBrowserDirect(ticker);
-        } catch(e) { stats = null; }
+          yahooStats = await fetchYahooBrowserDirect(ticker);
+        } catch(e) { yahooStats = null; }
+      }
+      if (!stats) stats = yahooStats;
+      else if (yahooStats) {
+        // Merge: fill any null fields in FMP stats with Yahoo data
+        for (const k of Object.keys(yahooStats)) {
+          if (k === '_source') continue;
+          if (stats[k] === null || stats[k] === undefined) stats[k] = yahooStats[k];
+        }
       }
 
       // ── Tier 3: Yahoo via Netlify proxy (last resort) ──
