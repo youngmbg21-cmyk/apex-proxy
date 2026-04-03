@@ -287,6 +287,9 @@ body::after {
   border-bottom: 1px solid var(--border);
   padding: 0 20px;
   gap: 0;
+  position: sticky;
+  top: 80px; /* topbar 48px + ticker strip 32px */
+  z-index: 98;
 }
 .tab {
   padding: 12px 20px;
@@ -316,6 +319,9 @@ body::after {
   overflow:hidden;
   display:flex;
   align-items:center;
+  position: sticky;
+  top: 48px;
+  z-index: 99;
 }
 .ticker-track {
   display:flex;
@@ -2415,13 +2421,13 @@ tbody tr:last-child td { border-bottom:none; }
             <tbody id="discPicksBody"></tbody>
           </table>
         </div>
-        <div class="disc-panel" style="flex:1;overflow:hidden;">
+        <div class="disc-panel" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
           <div class="disc-slabel" id="discAllLabel">
             All Exchange Stocks
             <span id="discAllStatus" style="color:var(--amber);font-size:7px;font-style:italic;">Loading live prices...</span>
             <span style="color:var(--text);font-size:7px;margin-left:6px;" id="discIndexNote">S&P 100 · live prices via Yahoo Finance</span>
           </div>
-          <div style="overflow-y:auto;max-height:320px;">
+          <div style="overflow-y:auto;flex:1;max-height:calc(100vh - 340px);">
             <table class="disc-table">
               <thead><tr>
                 <th style="width:22%">Ticker</th>
