@@ -8150,31 +8150,101 @@ async function discSelectStock(ticker) {
 }
 
 // ── Thesis panel ──
+function discRenderThesis(pk) {
+  const tp = document.getElementById('discThesis');
+  const vcls = pk.verdictClass === 'buy' ? 'var(--green)' : pk.verdictClass === 'sell' ? 'var(--red)' : 'var(--amber)';
+  tp.innerHTML = `
+    <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
+    <div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0 2px;">${pk.ticker}</div>
+    <div style="font-size:10px;color:var(--text);margin-bottom:6px;">${pk.name || ''}</div>
+    <div style="display:inline-block;background:${vcls}22;border:1px solid ${vcls};color:${vcls};padding:3px 10px;font-size:9px;letter-spacing:0.08em;border-radius:3px;margin-bottom:10px;">${pk.verdict}</div>
+    ${pk.whyNow ? `<div style="font-size:10px;color:var(--amber);margin-bottom:8px;line-height:1.5;">⚡ ${pk.whyNow}</div>` : ''}
+    <div style="font-size:9px;font-weight:700;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:5px;">Thesis</div>
+    ${(pk.thesis||[]).map(pt=>`<div class="disc-pt"><span style="color:var(--green);flex-shrink:0;">▸</span><span>${pt}</span></div>`).join('')}
+    ${pk.catalyst ? `<div style="margin-top:8px;padding:6px 8px;background:rgba(0,255,136,0.06);border-left:2px solid var(--green);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Key Catalyst</div><div style="font-size:9px;color:var(--text);">${pk.catalyst}</div></div>` : ''}
+    ${pk.analystView ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(123,47,255,0.08);border-left:2px solid rgba(123,47,255,0.5);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Analyst View</div><div style="font-size:9px;color:var(--text);">${pk.analystView}</div></div>` : ''}
+    ${pk.risk ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(255,69,96,0.06);border-left:2px solid rgba(255,69,96,0.4);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Key Risk</div><div style="font-size:9px;color:var(--text);">${pk.risk}</div></div>` : ''}
+    ${pk.whyBestNow || pk.whyUnderRadar ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(255,184,0,0.06);border-left:2px solid rgba(255,184,0,0.4);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Best Risk/Reward Now</div><div style="font-size:9px;color:var(--text);">${pk.whyBestNow || pk.whyUnderRadar}</div></div>` : ''}
+    <div style="font-size:8px;color:var(--text);margin-top:8px;font-style:italic;">AI-generated · training data to Aug 2025 · not financial advice</div>
+    <button class="disc-load-btn" onclick="discLoadInTerminal('${pk.ticker}')">LOAD ${pk.ticker} IN OVERVIEW →</button>`;
+}
+
+// Cache for on-demand generated theses
+const discThesisCache = {};
+
+async function discGenerateThesisForStock(ticker) {
+  if (!anthropicKey) { openSettings(); return; }
+  if (discThesisCache[ticker]) { discRenderThesis(discThesisCache[ticker]); return; }
+
+  const tp = document.getElementById('discThesis');
+  tp.innerHTML = `
+    <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
+    <div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0 2px;">${ticker}</div>
+    <div style="font-size:9px;color:var(--text);line-height:1.6;margin-top:8px;"><span class="loading-dots"><span></span><span></span><span></span></span> Generating AI thesis for ${ticker}...</div>
+    <button class="disc-load-btn" style="margin-top:12px;" onclick="discLoadInTerminal('${ticker}')">LOAD ${ticker} IN OVERVIEW →</button>`;
+
+  const mk  = discMarket === 'US' ? 'US (NYSE/NASDAQ)' : discMarket === 'SE' ? 'Sweden (Nasdaq Stockholm/OMX)' : 'United Kingdom (LSE/FTSE)';
+  const cur = discMarket === 'US' ? 'USD' : discMarket === 'SE' ? 'SEK' : 'GBP';
+
+  const prompt = `You are a Goldman Sachs senior equity strategist. Provide a detailed investment thesis for ${ticker} in the ${mk} market. Currency: ${cur}. Date: April 2026.
+
+Analyze this stock across:
+- Fundamentals (revenue growth, margin expansion, earnings quality)
+- Valuation relative to sector peers and growth rate
+- Price momentum and technical setup
+- Analyst consensus and price target
+- Sector tailwinds and macro positioning for 2025-2026
+- Key upcoming catalysts and risks
+
+Respond ONLY with valid JSON:
+{
+  "ticker": "${ticker}",
+  "name": "Official Company Name",
+  "verdict": "STRONG BUY or BUY or HOLD or SELL",
+  "verdictClass": "buy or hold or sell",
+  "whyNow": "One sentence on the primary thesis right now",
+  "thesis": ["Specific point 1 with data", "Specific point 2 with data", "Specific point 3 with data"],
+  "catalyst": "Specific upcoming catalyst",
+  "risk": "Main risk to the thesis",
+  "analystView": "Analyst consensus summary",
+  "whyBestNow": "What makes this a compelling opportunity right now"
+}`;
+
+  try {
+    const res = await anthropicFetch(anthropicKey, {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2000,
+      system: 'You are a financial analysis engine. Respond with raw JSON only. No markdown fences. Start with { end with }.',
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || 'API error');
+    const text = data.content?.[0]?.text || '';
+    let jsonStr = text.replace(/^```[\w\s]*\n?/gm,'').replace(/```\s*$/gm,'').trim();
+    const s = jsonStr.indexOf('{'), e = jsonStr.lastIndexOf('}');
+    if (s !== -1 && e !== -1) jsonStr = jsonStr.slice(s, e+1);
+    const parsed = JSON.parse(jsonStr);
+    parsed.ticker = ticker;
+    discThesisCache[ticker] = parsed;
+    if (discCurrentStock === ticker) discRenderThesis(parsed);
+  } catch(err) {
+    if (discCurrentStock === ticker) {
+      tp.innerHTML = `
+        <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
+        <div style="font-size:14px;color:var(--text);font-weight:700;margin:6px 0 8px;">${ticker}</div>
+        <div style="font-size:9px;color:var(--red);line-height:1.6;">⚠ Failed to generate thesis: ${err.message}</div>
+        <button class="disc-load-btn" style="margin-top:12px;" onclick="discGenerateThesisForStock('${ticker}')">↻ RETRY</button>
+        <button class="disc-load-btn" style="margin-top:6px;" onclick="discLoadInTerminal('${ticker}')">LOAD ${ticker} IN OVERVIEW →</button>`;
+    }
+  }
+}
+
 function discShowThesis(ticker) {
   const pk = discPicks.find(p => p.ticker === ticker);
-  const tp = document.getElementById('discThesis');
   if (pk) {
-    const vcls = pk.verdictClass === 'buy' ? 'var(--green)' : pk.verdictClass === 'sell' ? 'var(--red)' : 'var(--amber)';
-    tp.innerHTML = `
-      <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
-      <div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0 2px;">${pk.ticker}</div>
-      <div style="font-size:10px;color:var(--text);margin-bottom:6px;">${pk.name || ''}</div>
-      <div style="display:inline-block;background:${vcls}22;border:1px solid ${vcls};color:${vcls};padding:3px 10px;font-size:9px;letter-spacing:0.08em;border-radius:3px;margin-bottom:10px;">${pk.verdict}</div>
-      ${pk.whyNow ? `<div style="font-size:10px;color:var(--amber);margin-bottom:8px;line-height:1.5;">⚡ ${pk.whyNow}</div>` : ''}
-      <div style="font-size:9px;font-weight:700;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:5px;">Thesis</div>
-      ${(pk.thesis||[]).map(pt=>`<div class="disc-pt"><span style="color:var(--green);flex-shrink:0;">▸</span><span>${pt}</span></div>`).join('')}
-      ${pk.catalyst ? `<div style="margin-top:8px;padding:6px 8px;background:rgba(0,255,136,0.06);border-left:2px solid var(--green);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Key Catalyst</div><div style="font-size:9px;color:var(--text);">${pk.catalyst}</div></div>` : ''}
-      ${pk.analystView ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(123,47,255,0.08);border-left:2px solid rgba(123,47,255,0.5);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Analyst View</div><div style="font-size:9px;color:var(--text);">${pk.analystView}</div></div>` : ''}
-      ${pk.risk ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(255,69,96,0.06);border-left:2px solid rgba(255,69,96,0.4);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Key Risk</div><div style="font-size:9px;color:var(--text);">${pk.risk}</div></div>` : ''}
-      ${pk.whyBestNow || pk.whyUnderRadar ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(255,184,0,0.06);border-left:2px solid rgba(255,184,0,0.4);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Best Risk/Reward Now</div><div style="font-size:9px;color:var(--text);">${pk.whyBestNow || pk.whyUnderRadar}</div></div>` : ''}
-      <div style="font-size:8px;color:var(--text);margin-top:8px;font-style:italic;">AI-generated · training data to Aug 2025 · not financial advice</div>
-      <button class="disc-load-btn" onclick="discLoadInTerminal('${pk.ticker}')">LOAD ${pk.ticker} IN OVERVIEW →</button>`;
+    discRenderThesis(pk);
   } else {
-    tp.innerHTML = `
-      <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
-      <div style="font-size:14px;color:var(--text);font-weight:700;margin:6px 0 8px;">${ticker}</div>
-      <div style="font-size:9px;color:var(--text);line-height:1.6;">This stock is not in the current AI picks.<br>Generate picks to see emerging opportunities, or load this stock in the Overview for a full AI analysis.</div>
-      <button class="disc-load-btn" style="margin-top:12px;" onclick="discLoadInTerminal('${ticker}')">LOAD ${ticker} IN OVERVIEW →</button>`;
+    discGenerateThesisForStock(ticker);
   }
 }
 
