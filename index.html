@@ -2009,9 +2009,9 @@ tbody tr:last-child td { border-bottom:none; }
   <div class="tab active" onclick="switchTab('overview')">📈 Overview</div>
   <div class="tab" onclick="switchTab('discovery')">🔭 Discovery</div>
   <div class="tab" onclick="switchTab('ai')">🤖 AI Analysis</div>
+  <div class="tab" onclick="switchTab('macro')">🌍 Macro</div>
   <div class="tab" onclick="switchTab('wealth')">💎 Wealth Mgmt</div>
   <div class="tab" onclick="switchTab('portfolio')">💼 Portfolio</div>
-  <div class="tab" onclick="switchTab('macro')">🌍 Macro</div>
   <div class="tab" onclick="switchTab('guide')" style="margin-left:auto;">📖 Guide</div>
 </div>
 
@@ -3924,12 +3924,12 @@ function checkKeyWarning() {
 // ============================================================
 function switchTab(name) {
   activeTab = name;
-  ['overview','discovery','ai','wealth','portfolio','macro','guide'].forEach(t => {
+  ['overview','discovery','ai','macro','wealth','portfolio','guide'].forEach(t => {
     const el = document.getElementById(`tab-${t}`);
     if (el) el.style.display = t===name ? 'block' : 'none';
   });
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  const tabNames = ['overview','discovery','ai','wealth','portfolio','macro','guide'];
+  const tabNames = ['overview','discovery','ai','macro','wealth','portfolio','guide'];
   const idx = tabNames.indexOf(name);
   const tabEls = document.querySelectorAll('.tab');
   if (tabEls[idx]) tabEls[idx].classList.add('active');
