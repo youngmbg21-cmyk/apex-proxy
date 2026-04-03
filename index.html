@@ -2332,46 +2332,67 @@ tbody tr:last-child td { border-bottom:none; }
 
   <!-- ===== MACRO TAB ===== -->
   <div id="tab-macro" style="display:none;">
-    <div class="macro-grid">
-      <div class="macro-indicator">
-        <div class="macro-label" id="macroRateLabel">Central Bank Rate</div>
-        <div class="macro-value" id="macroFed">—</div>
-        <div class="macro-change neu" id="macroFedChg">Loading...</div>
+
+    <!-- Row 1: Sector Heatmap (hero, full width) -->
+    <div class="sector-heatmap" style="margin-bottom:12px;">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Sector Performance (YTD) <span style="font-size:8px;color:var(--text);margin-left:4px;">Click a sector for AI narrative</span></span>
+        <span id="heatmapMarketLabel" style="color:var(--green);">S&P 500</span>
       </div>
-      <div class="macro-indicator">
-        <div class="macro-label" id="macroBondLabel">10Y Bond Yield</div>
-        <div class="macro-value" id="macro10Y">—</div>
-        <div class="macro-change neu" id="macro10YChg">Loading...</div>
-      </div>
-      <div class="macro-indicator">
-        <div class="macro-label" id="macroCPILabel">CPI (YoY)</div>
-        <div class="macro-value" id="macroCPI">—</div>
-        <div class="macro-change neu" id="macroCPIChg">Loading...</div>
-      </div>
-      <div class="macro-indicator">
-        <div class="macro-label" id="macroGDPLabel">GDP Growth</div>
-        <div class="macro-value" id="macroGDP">—</div>
-        <div class="macro-change neu" id="macroGDPChg">Loading...</div>
-      </div>
-      <div class="macro-indicator">
-        <div class="macro-label" id="macroUnempLabel">Unemployment</div>
-        <div class="macro-value" id="macroUnemp">—</div>
-        <div class="macro-change neu" id="macroUnempChg">Loading...</div>
-      </div>
-      <div class="macro-indicator">
-        <div class="macro-label" id="macroVIXLabel">Volatility Index</div>
-        <div class="macro-value" id="macroVIX">—</div>
-        <div class="macro-change neu" id="macroVIXChg">Loading...</div>
+      <div class="heatmap-grid" id="sectorHeatmap">
+        <!-- injected by JS -->
       </div>
     </div>
 
-    <div class="macro-grid-bottom">
-      <div class="sector-heatmap">
-        <div class="card-title">Sector Performance (YTD) <span id="heatmapMarketLabel">S&P 500</span></div>
-        <div class="heatmap-grid" id="sectorHeatmap">
-          <!-- injected by JS -->
+    <!-- Row 2: Market Pulse + Sector Narrative -->
+    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:12px;margin-bottom:12px;">
+
+      <!-- Market Pulse -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="macro-indicator">
+          <div class="macro-label">Market Breadth</div>
+          <div class="macro-value" id="macroBreadthVal">—</div>
+          <div class="macro-change neu" id="macroBreadthChg">Load prices in Discovery first</div>
+        </div>
+        <div class="macro-indicator">
+          <div class="macro-label">VIX (Fear Index)</div>
+          <div class="macro-value" id="macroVIXVal">—</div>
+          <div class="macro-change neu" id="macroVIXChg2">Loading...</div>
+        </div>
+        <div class="macro-indicator">
+          <div class="macro-label" id="macroBondLabel2">10Y Treasury Yield</div>
+          <div class="macro-value" id="macro10YVal">—</div>
+          <div class="macro-change neu" id="macro10YChg2">Loading...</div>
+        </div>
+        <div class="macro-indicator">
+          <div class="macro-label">SPY vs 200-DMA</div>
+          <div class="macro-value" id="macroSPYDMA">—</div>
+          <div class="macro-change neu" id="macroSPYDMAChg">Loading...</div>
         </div>
       </div>
+
+      <!-- Sector Narrative (AI) -->
+      <div class="macro-indicator" style="overflow-y:auto;max-height:380px;" id="macroSectorNarrative">
+        <div class="macro-label" style="color:rgba(160,100,255,0.9);">Sector Narrative</div>
+        <div style="font-size:10px;color:var(--text);margin-top:8px;line-height:1.6;">Click any sector in the heatmap above to get an AI-generated analysis of what's driving that sector's performance.</div>
+      </div>
+    </div>
+
+    <!-- Row 3: Top Movers + Indices & Rates -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+      <!-- Top Movers -->
+      <div class="rates-table card">
+        <div class="card-title">Top Movers Today <span style="font-size:8px;color:var(--text);" id="macroMoversNote">from S&P 100</span></div>
+        <table style="margin-top:4px;">
+          <thead><tr><th>Ticker</th><th>Price</th><th>Change</th></tr></thead>
+          <tbody id="macroMoversBody">
+            <tr><td class="td-ticker" colspan="3" style="color:var(--text);text-align:center;padding:16px;">Load prices in Discovery tab first</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Indices & Rates (already live) -->
       <div class="rates-table card">
         <div class="card-title" id="ratesTableTitle">Market Indices & Rates <span>Live</span></div>
         <table style="margin-top:4px;">
@@ -3959,7 +3980,7 @@ function switchTab(name) {
     }
   }
   if (name === 'macro') {
-    fetchLiveSectorPerformance();
+    refreshMacroTab();
   }
 }
 
@@ -6332,7 +6353,7 @@ function renderSectorHeatmap() {
     else if (s.raw > 0)  bg = 'rgba(0,255,136,0.2)';
     else if (s.raw > -5) bg = 'rgba(255,69,96,0.25)';
     else                 bg = 'rgba(255,69,96,0.55)';
-    return `<div class="heat-cell" style="background:${bg}"><div class="heat-cell-name">${s.name}</div><div class="heat-cell-val">${s.loading ? '<span class="loading-dots" style="font-size:8px;"><span></span><span></span><span></span></span>' : s.val}</div></div>`;
+    return `<div class="heat-cell" style="background:${bg};cursor:pointer;" onclick="macroSectorClick('${s.name}','${s.val}')"><div class="heat-cell-name">${s.name}</div><div class="heat-cell-val">${s.loading ? '<span class="loading-dots" style="font-size:8px;"><span></span><span></span><span></span></span>' : s.val}</div></div>`;
   }).join('');
 }
 
@@ -6399,6 +6420,233 @@ async function fetchLiveSectorPerformance() {
 }
 
 // ============================================================
+// MACRO — MARKET PULSE (live VIX, 10Y, Breadth, SPY vs 200-DMA)
+// ============================================================
+const MACRO_LIVE_TICKERS = {
+  US:  { vix: '^VIX', bond: '^TNX', spy: 'SPY', bondLabel: '10Y Treasury Yield' },
+  SE:  { vix: '^OMX', bond: '^SE10Y', spy: 'OMX30.ST', bondLabel: '10Y Sweden Bond' },
+  UK:  { vix: '^VFTSE', bond: '^TMBMKGB-10Y', spy: 'ISF.L', bondLabel: '10Y Gilt Yield' },
+};
+
+async function fetchMacroPulse() {
+  if (!PROXY_BASE) return;
+  const base = PROXY_BASE.replace(/\/$/, '');
+  const tickers = MACRO_LIVE_TICKERS[activeMarket] || MACRO_LIVE_TICKERS.US;
+
+  // Update bond label
+  const bondLbl = document.getElementById('macroBondLabel2');
+  if (bondLbl) bondLbl.textContent = tickers.bondLabel;
+
+  // Fetch VIX, 10Y, and SPY quote in parallel
+  const [vixRes, bondRes, spyRes] = await Promise.allSettled([
+    yhFetch('quote', tickers.vix),
+    yhFetch('quote', tickers.bond),
+    yhFetch('quote', tickers.spy),
+  ]);
+
+  // VIX
+  if (vixRes.status === 'fulfilled' && vixRes.value?.price) {
+    const q = vixRes.value;
+    const v = Number(q.price).toFixed(1);
+    const chg = q.changePct || 0;
+    const isUp = chg >= 0;
+    const level = q.price > 30 ? 'Extreme fear' : q.price > 20 ? 'Elevated' : q.price > 15 ? 'Moderate' : 'Low volatility';
+    document.getElementById('macroVIXVal').textContent = v;
+    const vixChgEl = document.getElementById('macroVIXChg2');
+    vixChgEl.textContent = `${isUp?'▲':'▼'} ${Math.abs(chg).toFixed(2)}% today · ${level}`;
+    vixChgEl.className = `macro-change ${q.price > 20 ? 'dn' : 'up'}`;
+  }
+
+  // 10Y Bond
+  if (bondRes.status === 'fulfilled' && bondRes.value?.price) {
+    const q = bondRes.value;
+    const v = Number(q.price).toFixed(2);
+    const chg = q.change || 0;
+    const isUp = chg >= 0;
+    document.getElementById('macro10YVal').textContent = `${v}%`;
+    const bondChgEl = document.getElementById('macro10YChg2');
+    bondChgEl.textContent = `${isUp?'▲':'▼'} ${Math.abs(chg).toFixed(3)} today`;
+    bondChgEl.className = `macro-change ${isUp ? 'up' : 'dn'}`;
+  }
+
+  // SPY vs 200-DMA — need chart data for this
+  if (spyRes.status === 'fulfilled' && spyRes.value?.price) {
+    const spyPrice = spyRes.value.price;
+    try {
+      const chartRes = await fetch(`${base}/.netlify/functions/chart?symbol=${encodeURIComponent(tickers.spy)}&interval=1d&range=1y`);
+      const chartData = await chartRes.json();
+      if (chartData.closes && chartData.closes.length >= 200) {
+        const last200 = chartData.closes.slice(-200).filter(c => c != null && c > 0);
+        const dma200 = last200.reduce((a,b) => a+b, 0) / last200.length;
+        const pctAbove = ((spyPrice - dma200) / dma200 * 100);
+        const label = pctAbove > 0 ? 'Above' : 'Below';
+        document.getElementById('macroSPYDMA').textContent = `${pctAbove >= 0 ? '+' : ''}${pctAbove.toFixed(1)}%`;
+        const dmaChgEl = document.getElementById('macroSPYDMAChg');
+        dmaChgEl.textContent = `${label} 200-DMA ($${dma200.toFixed(0)})`;
+        dmaChgEl.className = `macro-change ${pctAbove >= 0 ? 'up' : 'dn'}`;
+      }
+    } catch(e) {}
+  }
+
+  // Breadth — derived from Discovery discLiveData
+  macroUpdateBreadth();
+}
+
+function macroUpdateBreadth() {
+  const tickers = DISC_TICKERS[activeMarket] || [];
+  const loaded = tickers.filter(({t}) => discLiveData[t]);
+  if (loaded.length === 0) {
+    document.getElementById('macroBreadthVal').textContent = '—';
+    document.getElementById('macroBreadthChg').textContent = 'Load prices in Discovery first';
+    document.getElementById('macroBreadthChg').className = 'macro-change neu';
+    return;
+  }
+  const up = loaded.filter(({t}) => discLiveData[t]?.pct >= 0).length;
+  const total = loaded.length;
+  const pct = ((up / total) * 100).toFixed(0);
+  const sentiment = pct > 70 ? 'Strong risk-on' : pct > 55 ? 'Mildly bullish' : pct > 45 ? 'Mixed' : pct > 30 ? 'Risk-off' : 'Broad selling';
+  document.getElementById('macroBreadthVal').textContent = `${up}/${total} ▲`;
+  const breadthEl = document.getElementById('macroBreadthChg');
+  breadthEl.textContent = `${pct}% advancing · ${sentiment}`;
+  breadthEl.className = `macro-change ${pct > 55 ? 'up' : pct < 45 ? 'dn' : 'neu'}`;
+}
+
+// ============================================================
+// MACRO — TOP MOVERS (derived from Discovery live data)
+// ============================================================
+function macroUpdateTopMovers() {
+  const tickers = DISC_TICKERS[activeMarket] || [];
+  const loaded = tickers.filter(({t}) => discLiveData[t]).map(({t, s}) => ({
+    ticker: t, sector: s, ...discLiveData[t]
+  }));
+
+  const tbody = document.getElementById('macroMoversBody');
+  if (!tbody) return;
+
+  if (loaded.length === 0) {
+    tbody.innerHTML = '<tr><td class="td-ticker" colspan="3" style="color:var(--text);text-align:center;padding:16px;">Load prices in Discovery tab first</td></tr>';
+    return;
+  }
+
+  // Sort by % change
+  const sorted = [...loaded].sort((a, b) => b.pct - a.pct);
+  const gainers = sorted.slice(0, 5);
+  const losers = sorted.slice(-5).reverse();
+
+  const cur = activeMarket === 'US' ? '$' : activeMarket === 'SE' ? '' : '£';
+  const suf = activeMarket === 'SE' ? ' kr' : '';
+  const fmtP = (v) => `${cur}${Number(v).toFixed(0)}${suf}`;
+
+  let html = '<tr><td colspan="3" style="font-size:8px;color:var(--green);letter-spacing:0.1em;padding:4px 4px 2px;">▲ TOP GAINERS</td></tr>';
+  gainers.forEach(g => {
+    html += `<tr style="cursor:pointer;" onclick="discLoadInTerminal('${g.ticker}')">
+      <td class="td-ticker" style="color:var(--green);">${g.ticker}</td>
+      <td>${fmtP(g.price)}</td>
+      <td class="td-pos">+${Number(g.pct).toFixed(2)}%</td>
+    </tr>`;
+  });
+  html += '<tr><td colspan="3" style="font-size:8px;color:var(--red);letter-spacing:0.1em;padding:8px 4px 2px;">▼ TOP LOSERS</td></tr>';
+  losers.forEach(l => {
+    html += `<tr style="cursor:pointer;" onclick="discLoadInTerminal('${l.ticker}')">
+      <td class="td-ticker" style="color:var(--red);">${l.ticker}</td>
+      <td>${fmtP(l.price)}</td>
+      <td class="td-neg">${Number(l.pct).toFixed(2)}%</td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html;
+  document.getElementById('macroMoversNote').textContent = `from ${loaded.length} stocks`;
+}
+
+// ============================================================
+// MACRO — SECTOR NARRATIVE (AI on-click)
+// ============================================================
+const macroNarrativeCache = {};
+
+async function macroSectorClick(sectorName, ytdVal) {
+  const panel = document.getElementById('macroSectorNarrative');
+  if (!panel) return;
+
+  // Check cache
+  const cacheKey = `${activeMarket}_${sectorName}`;
+  if (macroNarrativeCache[cacheKey]) {
+    panel.innerHTML = macroNarrativeCache[cacheKey];
+    return;
+  }
+
+  if (!anthropicKey) {
+    panel.innerHTML = `<div class="macro-label" style="color:rgba(160,100,255,0.9);">Sector Narrative — ${sectorName}</div>
+      <div style="font-size:10px;color:var(--text);margin-top:8px;">Add API key in settings to generate AI narratives.</div>`;
+    return;
+  }
+
+  // Loading state
+  panel.innerHTML = `<div class="macro-label" style="color:rgba(160,100,255,0.9);">Sector Narrative — ${sectorName}</div>
+    <div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0;">${sectorName} ${ytdVal} YTD</div>
+    <div style="font-size:10px;color:var(--text);margin-top:8px;"><span class="loading-dots"><span></span><span></span><span></span></span> Generating narrative...</div>`;
+
+  // Get top stocks in this sector from live data for context
+  const tickers = DISC_TICKERS[activeMarket] || [];
+  const sectorStocks = tickers.filter(({s}) => s === sectorName).map(({t}) => {
+    const live = discLiveData[t];
+    return live ? `${t} (${live.pct >= 0 ? '+' : ''}${Number(live.pct).toFixed(1)}% today)` : t;
+  });
+
+  const mk = mkt();
+  const prompt = `You are a senior macro strategist. Explain what is driving the ${sectorName} sector's ${ytdVal} YTD performance in the ${mk.benchmark} market (${mk.currencyCode}). Date: April 2026.
+
+Stocks in this sector: ${sectorStocks.join(', ')}
+
+Provide:
+1. KEY DRIVERS (2-3 specific factors driving this sector's performance — macro trends, earnings, regulation, industry shifts)
+2. NOTABLE MOVES (which stocks are outperforming/underperforming and why)
+3. OUTLOOK (what to watch next — catalysts, risks, positioning)
+
+Be specific with data points. Keep it concise — 150-200 words total.
+Format as plain text with clear section headers.`;
+
+  try {
+    const res = await anthropicFetch(anthropicKey, {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1500,
+      system: 'You are a financial macro strategist. Write concise, data-driven commentary. No markdown fences.',
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || 'API error');
+    const text = data.content?.[0]?.text || '';
+
+    // Format the response
+    const formatted = text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^(KEY DRIVERS|NOTABLE MOVES|OUTLOOK|[A-Z][A-Z\s&]+:)/gm, '<div style="font-size:8px;font-weight:700;color:var(--green);letter-spacing:0.1em;margin-top:10px;margin-bottom:3px;">$1</div>')
+      .replace(/\n/g, '<br>');
+
+    const html = `<div class="macro-label" style="color:rgba(160,100,255,0.9);">Sector Narrative — ${sectorName}</div>
+      <div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0;">${sectorName} ${ytdVal} YTD</div>
+      <div style="font-size:9px;color:var(--text);line-height:1.6;margin-top:6px;">${formatted}</div>
+      <div style="font-size:7px;color:var(--text);margin-top:8px;font-style:italic;">AI-generated · not financial advice</div>`;
+
+    macroNarrativeCache[cacheKey] = html;
+    panel.innerHTML = html;
+  } catch(err) {
+    panel.innerHTML = `<div class="macro-label" style="color:rgba(160,100,255,0.9);">Sector Narrative — ${sectorName}</div>
+      <div style="font-size:10px;color:var(--red);margin-top:8px;">⚠ Failed: ${err.message}</div>
+      <button class="disc-load-btn" style="margin-top:8px;" onclick="macroSectorClick('${sectorName}','${ytdVal}')">↻ Retry</button>`;
+  }
+}
+
+// Master function to refresh all macro live data
+async function refreshMacroTab() {
+  await Promise.all([
+    fetchLiveSectorPerformance(),
+    fetchMacroPulse(),
+  ]);
+  macroUpdateBreadth();
+  macroUpdateTopMovers();
+}
+
+// ============================================================
 // MARKET SWITCHING
 // ============================================================
 function switchMarket(code, btn) {
@@ -6452,8 +6700,8 @@ function applyMarket(code) {
 
   // Update macro heatmap sectors and label
   renderSectorHeatmap();
-  // Fetch live sector YTD data if on macro tab
-  if (activeTab === 'macro') fetchLiveSectorPerformance();
+  // Refresh all macro live data if on macro tab
+  if (activeTab === 'macro') refreshMacroTab();
 
   // Reload live macro ticker strip for this market
   loadLiveMacro();
@@ -6511,24 +6759,11 @@ const MACRO_DATA = {
 function renderMacroIndicators(code) {
   const d = MACRO_DATA[code] || MACRO_DATA.US;
 
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  const cls = (id, dir) => {
-    const el = document.getElementById(id);
-    if (el) el.className = `macro-change ${dir}`;
-  };
-
-  set('macroRateLabel',  d.rateLabel);  set('macroFed',   d.rate);  set('macroFedChg',   d.rateChg);  cls('macroFedChg',   d.rateDir);
-  set('macroBondLabel',  d.bondLabel);  set('macro10Y',   d.bond);  set('macro10YChg',   d.bondChg);  cls('macro10YChg',   d.bondDir);
-  set('macroCPILabel',   d.cpiLabel);   set('macroCPI',   d.cpi);   set('macroCPIChg',   d.cpiChg);   cls('macroCPIChg',   d.cpiDir);
-  set('macroGDPLabel',   d.gdpLabel);   set('macroGDP',   d.gdp);   set('macroGDPChg',   d.gdpChg);   cls('macroGDPChg',   d.gdpDir);
-  set('macroUnempLabel', d.unempLabel); set('macroUnemp', d.unemp); set('macroUnempChg', d.unempChg); cls('macroUnempChg', d.unempDir);
-  set('macroVIXLabel',   d.vixLabel);   set('macroVIX',   d.vix);   set('macroVIXChg',   d.vixChg);   cls('macroVIXChg',   d.vixDir);
-
   // Update rates table title
   const titleEl = document.getElementById('ratesTableTitle');
   if (titleEl) titleEl.innerHTML = `${d.ratesTitle} <span>Live</span>`;
 
-  // Seed the rates table with market-specific instruments (live data fills rows 0 & 1)
+  // Seed the rates table with market-specific instruments (live data fills in async)
   const tbody = document.getElementById('ratesBody');
   if (tbody) {
     tbody.innerHTML = d.ratesRows.map(([name]) =>
