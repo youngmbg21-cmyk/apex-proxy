@@ -2007,11 +2007,11 @@ tbody tr:last-child td { border-bottom:none; }
 <!-- TABS -->
 <div class="tabs">
   <div class="tab active" onclick="switchTab('overview')">📈 Overview</div>
+  <div class="tab" onclick="switchTab('discovery')">🔭 Discovery</div>
   <div class="tab" onclick="switchTab('ai')">🤖 AI Analysis</div>
   <div class="tab" onclick="switchTab('wealth')">💎 Wealth Mgmt</div>
   <div class="tab" onclick="switchTab('portfolio')">💼 Portfolio</div>
   <div class="tab" onclick="switchTab('macro')">🌍 Macro</div>
-  <div class="tab" onclick="switchTab('discovery')">🔭 Discovery</div>
   <div class="tab" onclick="switchTab('guide')" style="margin-left:auto;">📖 Guide</div>
 </div>
 
@@ -2398,8 +2398,11 @@ tbody tr:last-child td { border-bottom:none; }
       </div>
       <span style="font-size:9px;color:var(--text);" id="discMktLabel">S&P 500 · NYSE/NASDAQ</span>
       <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <select id="discSectorFilter" onchange="discOnSectorChange()" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:9px;font-family:inherit;cursor:pointer;">
+          <option value="All">All Sectors</option>
+        </select>
         <span style="font-size:9px;color:var(--text);max-width:400px;" id="discPicksNote"></span>
-        <button class="disc-generate-btn" id="discGenBtn" onclick="discGeneratePicks()">⚡ Generate Picks</button>
+        <button class="disc-generate-btn" id="discGenBtn" onclick="discGeneratePicks()">⚡ Screen Top 5</button>
       </div>
     </div>
 
@@ -2408,15 +2411,15 @@ tbody tr:last-child td { border-bottom:none; }
       <!-- LEFT: two tables stacked -->
       <div class="disc-left">
         <div class="disc-panel">
-          <div class="disc-slabel">AI Recommended Picks <span style="color:var(--amber);font-size:7px;font-style:italic;">Goldman Sachs Style · Top 5</span></div>
-          <div id="discPicksEmpty" style="font-size:10px;color:var(--text);padding:20px 0;text-align:center;">Click Generate Picks to get AI recommendations</div>
+          <div class="disc-slabel">Quant-Scored Picks <span style="color:var(--amber);font-size:7px;font-style:italic;">Composite Score · Top 5</span></div>
+          <div id="discPicksEmpty" style="font-size:10px;color:var(--text);padding:20px 0;text-align:center;">Click "Screen Top 5" to rank stocks by composite score</div>
           <table class="disc-table" id="discPicksTable" style="display:none;">
             <thead><tr>
-              <th style="width:40%">Ticker</th>
-              <th style="width:20%">Price</th>
-              <th style="width:15%">Chg%</th>
-              <th style="width:12%">Hi</th>
-              <th style="width:13%">Lo</th>
+              <th style="width:28%">Ticker</th>
+              <th style="width:18%">Price</th>
+              <th style="width:14%">Chg%</th>
+              <th style="width:16%">Score</th>
+              <th style="width:24%">Rank Reason</th>
             </tr></thead>
             <tbody id="discPicksBody"></tbody>
           </table>
@@ -2474,9 +2477,9 @@ tbody tr:last-child td { border-bottom:none; }
             <div class="disc-slabel">10-Year Annual Returns <span id="discReturnsLabel" style="color:var(--green);font-size:8px;"></span></div>
             <div id="discAnnualReturns" style="color:var(--text);font-size:9px;padding:8px 0;">Click a stock to see annual returns</div>
           </div>
-          <div class="disc-panel" style="border-color:rgba(123,47,255,0.4);overflow-y:auto;max-height:260px;" id="discThesis">
-            <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
-            <div style="font-size:9px;color:var(--text);margin-top:8px;line-height:1.6;">Click a recommended stock to view the AI thesis</div>
+          <div class="disc-panel" style="border-color:rgba(123,47,255,0.4);overflow-y:auto;max-height:500px;" id="discThesis">
+            <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">5-Model AI Scorecard</div>
+            <div style="font-size:9px;color:var(--text);margin-top:8px;line-height:1.6;">Click a stock to run all 5 analysis models</div>
           </div>
         </div>
       </div>
@@ -3927,12 +3930,12 @@ function checkKeyWarning() {
 // ============================================================
 function switchTab(name) {
   activeTab = name;
-  ['overview','ai','wealth','portfolio','macro','discovery','guide'].forEach(t => {
+  ['overview','discovery','ai','wealth','portfolio','macro','guide'].forEach(t => {
     const el = document.getElementById(`tab-${t}`);
     if (el) el.style.display = t===name ? 'block' : 'none';
   });
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  const tabNames = ['overview','ai','wealth','portfolio','macro','discovery','guide'];
+  const tabNames = ['overview','discovery','ai','wealth','portfolio','macro','guide'];
   const idx = tabNames.indexOf(name);
   const tabEls = document.querySelectorAll('.tab');
   if (tabEls[idx]) tabEls[idx].classList.add('active');
@@ -7887,6 +7890,7 @@ function discSetMarket(m, btn) {
   discResetPicks();
   discResetChart();
   discResetAnnualReturns();
+  discPopulateSectors();
   discLoadAllStocks();
 }
 
@@ -7983,9 +7987,9 @@ function discResetPicks() {
   document.getElementById('discPicksEmpty').style.display = 'block';
   document.getElementById('discPicksTable').style.display = 'none';
   document.getElementById('discPicksNote').textContent = '';
-  document.getElementById('discGenBtn').innerHTML = '⚡ Generate Picks';
+  document.getElementById('discGenBtn').innerHTML = '⚡ Screen Top 5';
   document.getElementById('discGenBtn').disabled = false;
-  document.getElementById('discThesis').innerHTML = `<div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div><div style="font-size:9px;color:var(--text);margin-top:8px;line-height:1.6;">Click a recommended stock to view the AI thesis</div>`;
+  document.getElementById('discThesis').innerHTML = `<div class="disc-slabel" style="color:rgba(160,100,255,0.9);">5-Model AI Scorecard</div><div style="font-size:9px;color:var(--text);margin-top:8px;line-height:1.6;">Click a stock to view quant scores & run AI models</div>`;
 }
 
 function discResetChart() {
@@ -8001,92 +8005,177 @@ function discResetAnnualReturns() {
   if (discAnnChart) { discAnnChart.destroy(); discAnnChart = null; }
 }
 
-// ── Generate Picks — under-the-radar, emerging stocks ──
+// ── Sector dropdown population ──
+function discPopulateSectors() {
+  const sel = document.getElementById('discSectorFilter');
+  const tickers = DISC_TICKERS[discMarket];
+  const sectors = [...new Set(tickers.map(t => t.s))].sort();
+  sel.innerHTML = '<option value="All">All Sectors</option>' +
+    sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function discOnSectorChange() {
+  // Reset picks when sector changes
+  discResetPicks();
+}
+
+// ── Quantitative scoring engine ──
+// Fetches summary stats for stocks in selected sector, scores them, returns top 5
+async function discFetchStockStats(ticker) {
+  const suffix = discMarket === 'SE' ? '.ST' : discMarket === 'UK' ? '.L' : '';
+  const fullT = ticker + suffix;
+  try {
+    const stats = await fetchYahooBrowserDirect(fullT);
+    return stats;
+  } catch(e) {
+    try {
+      const stats = await yhFetch('summary', fullT);
+      return stats;
+    } catch(e2) { return null; }
+  }
+}
+
+function discComputeScore(ticker, stats, liveData, sectorAvgPE) {
+  const live = liveData[ticker];
+  if (!stats && !live) return { total: 0, momentum: 0, value: 0, size: 0, volatility: 0, reason: 'No data' };
+
+  // Momentum score (0-25): daily change + distance from 52W high
+  let momentum = 0;
+  let momReason = '';
+  if (live) {
+    const dailyPct = Number(live.pct) || 0;
+    momentum += Math.min(10, Math.max(0, (dailyPct + 5) * 2)); // -5%=0, 0%=10, +5%=20 capped at 10
+    if (stats?.week52High && stats?.week52Low && live.price) {
+      const range52 = stats.week52High - stats.week52Low;
+      const posIn52 = range52 > 0 ? (live.price - stats.week52Low) / range52 : 0.5;
+      momentum += posIn52 * 15; // higher in 52W range = stronger momentum
+      momReason = `${(posIn52*100).toFixed(0)}% of 52W range`;
+    } else {
+      momentum += 7.5;
+      momReason = `${live.pct >= 0 ? '+' : ''}${Number(live.pct).toFixed(1)}% today`;
+    }
+  }
+
+  // Value score (0-25): P/E relative to sector average
+  let value = 0;
+  let valReason = '';
+  if (stats?.peRatio && sectorAvgPE > 0) {
+    const peRatio = Number(stats.peRatio);
+    if (peRatio > 0 && peRatio < 200) {
+      const relPE = peRatio / sectorAvgPE;
+      // Lower P/E vs sector = higher value score
+      value = Math.min(25, Math.max(0, (2 - relPE) * 12.5));
+      valReason = `P/E ${peRatio.toFixed(1)}x vs ${sectorAvgPE.toFixed(1)}x avg`;
+    } else {
+      value = 5;
+      valReason = 'P/E N/A';
+    }
+  } else {
+    value = 5;
+    valReason = stats?.peRatio ? `P/E ${Number(stats.peRatio).toFixed(1)}x` : 'No P/E';
+  }
+
+  // Size score (0-25): market cap (favor large/mid for stability)
+  let size = 0;
+  let sizeReason = '';
+  if (stats?.marketCap) {
+    const mc = Number(stats.marketCap);
+    if (mc >= 200e9)      { size = 25; sizeReason = 'Mega cap'; }
+    else if (mc >= 50e9)  { size = 22; sizeReason = 'Large cap'; }
+    else if (mc >= 10e9)  { size = 18; sizeReason = 'Mid cap'; }
+    else if (mc >= 2e9)   { size = 12; sizeReason = 'Small cap'; }
+    else                  { size = 6;  sizeReason = 'Micro cap'; }
+  } else { size = 10; sizeReason = 'Unknown cap'; }
+
+  // Volatility score (0-25): beta — moderate beta (0.8-1.3) scores highest
+  let volatility = 0;
+  let volReason = '';
+  if (stats?.beta) {
+    const b = Number(stats.beta);
+    // Sweet spot around 1.0 — not too risky, not too boring
+    if (b >= 0.7 && b <= 1.5) { volatility = 25 - Math.abs(b - 1.0) * 15; }
+    else if (b > 1.5)         { volatility = Math.max(0, 15 - (b - 1.5) * 10); }
+    else                      { volatility = Math.max(0, 15 - (0.7 - b) * 20); }
+    volReason = `Beta ${b.toFixed(2)}`;
+  } else { volatility = 12; volReason = 'No beta'; }
+
+  const total = momentum + value + size + volatility;
+  const topReasons = [momReason, valReason, sizeReason, volReason].filter(Boolean);
+  const reason = topReasons.slice(0, 2).join(', ');
+
+  return { total: Math.round(total * 10) / 10, momentum, value, size, volatility, reason };
+}
+
 async function discGeneratePicks() {
-  if (!anthropicKey) { openSettings(); return; }
   const btn = document.getElementById('discGenBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
-  document.getElementById('discPicksNote').textContent = 'AI scanning for emerging opportunities...';
+  const noteEl = document.getElementById('discPicksNote');
+  noteEl.textContent = 'Fetching fundamentals & scoring...';
 
-  const mk  = discMarket === 'US' ? 'US (NYSE/NASDAQ)' : discMarket === 'SE' ? 'Sweden (Nasdaq Stockholm/OMX)' : 'United Kingdom (LSE/FTSE)';
-  const cur = discMarket === 'US' ? 'USD' : discMarket === 'SE' ? 'SEK' : 'GBP';
-  const exchange = discMarket === 'SE' ? 'OMX Stockholm' : discMarket === 'UK' ? 'London Stock Exchange' : 'NYSE/NASDAQ';
+  const sector = document.getElementById('discSectorFilter').value;
+  const allTickers = DISC_TICKERS[discMarket];
+  const candidates = sector === 'All' ? allTickers : allTickers.filter(t => t.s === sector);
 
-  const prompt = `You are a Goldman Sachs senior equity strategist. Identify the 5 best stocks to buy right now in the ${mk} market.
-
-Selection criteria — rank by:
-- Strong fundamentals (revenue growth, margin expansion, earnings quality)
-- Attractive valuation relative to sector peers and growth rate
-- Positive price momentum and technical setup
-- High or rising analyst consensus (Buy-rated, consensus price target upside)
-- Sector tailwinds and macro positioning for 2025-2026
-- No restriction on market cap — include large, mid or small cap if the opportunity is compelling
-
-No bias toward obscure names — pick the genuinely best risk/reward opportunities regardless of how well-known they are.
-Exchange: ${exchange}. Currency: ${cur}. Date: April 2026.
-
-CRITICAL — TICKER ACCURACY:
-- The "ticker" field MUST be the exact Yahoo Finance symbol for this stock
-- For UK/LSE stocks: use the ticker WITHOUT .L suffix (e.g. CRW for Craneware, AZN for AstraZeneca)
-- For Swedish/OMX stocks: use the ticker WITHOUT .ST suffix (e.g. VOLV-B for Volvo, ERIC-B for Ericsson)
-- For US stocks: use the plain ticker (e.g. NVDA, AAPL)
-- The "name" field must be the exact official company name as listed on the exchange
-
-For each pick provide:
-- A specific thesis explaining why this is a top buy right now
-- Key upcoming catalyst (earnings, product launch, regulatory event etc.)
-- Key risk to the thesis
-- Analyst consensus summary (e.g. "15 of 20 analysts Buy-rated, consensus target +28%")
-- What makes this the best risk/reward in the market right now
-
-Respond ONLY with valid JSON:
-{
-  "picks": [
-    {
-      "ticker": "TICKER",
-      "name": "Company Name",
-      "verdict": "STRONG BUY",
-      "verdictClass": "buy",
-      "whyNow": "One sentence on the primary buy thesis right now",
-      "thesis": ["Specific point 1 with data", "Specific point 2 with data", "Specific point 3 with data"],
-      "catalyst": "Specific upcoming catalyst",
-      "risk": "Main risk to the thesis",
-      "analystView": "Analyst consensus summary",
-      "whyBestNow": "What makes this the best risk/reward in this market right now"
-    }
-  ],
-  "marketNote": "One sentence on current market conditions driving these picks."
-}`;
-
-  try {
-    const res = await anthropicFetch(anthropicKey, {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 3000,
-      system: 'You are a financial analysis engine. Respond with raw JSON only. No markdown fences. Start with { end with }.',
-      messages: [{ role: 'user', content: prompt }]
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error?.message || 'API error');
-    const text = data.content?.[0]?.text || '';
-    let jsonStr = text.replace(/^```[\w\s]*\n?/gm,'').replace(/```\s*$/gm,'').trim();
-    const s = jsonStr.indexOf('{'), e = jsonStr.lastIndexOf('}');
-    if (s !== -1 && e !== -1) jsonStr = jsonStr.slice(s, e+1);
-    const parsed = JSON.parse(jsonStr);
-
-    discPicks = parsed.picks || [];
-    // Fetch live prices for AI picks (they may not be in the top-50 cache)
-    await discFetchPickPrices();
-    discRenderPicks();
-    if (parsed.marketNote) {
-      document.getElementById('discPicksNote').textContent = parsed.marketNote;
-    }
-  } catch(err) {
-    document.getElementById('discPicksNote').textContent = '⚠ Generation failed: ' + err.message;
+  if (candidates.length === 0) {
+    noteEl.textContent = 'No stocks in selected sector';
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Screen Top 5';
+    return;
   }
 
+  // Fetch summary stats for all candidates
+  noteEl.textContent = `Scoring ${candidates.length} stocks (0/${candidates.length})...`;
+  const statsMap = {};
+  const batchSize = 5;
+  let fetched = 0;
+
+  for (let i = 0; i < candidates.length; i += batchSize) {
+    const batch = candidates.slice(i, i + batchSize);
+    await Promise.allSettled(batch.map(async ({t}) => {
+      try {
+        statsMap[t] = await discFetchStockStats(t);
+      } catch(e) { statsMap[t] = null; }
+      fetched++;
+      noteEl.textContent = `Scoring ${candidates.length} stocks (${fetched}/${candidates.length})...`;
+    }));
+  }
+
+  // Compute sector average P/E for relative valuation
+  const peValues = candidates
+    .map(({t}) => statsMap[t]?.peRatio)
+    .filter(pe => pe && Number(pe) > 0 && Number(pe) < 200)
+    .map(Number);
+  const sectorAvgPE = peValues.length ? peValues.reduce((a,b) => a+b, 0) / peValues.length : 0;
+
+  // Score all candidates
+  const scored = candidates.map(({t, s}) => {
+    const scores = discComputeScore(t, statsMap[t], discLiveData, sectorAvgPE);
+    return { ticker: t, sector: s, stats: statsMap[t], scores };
+  });
+
+  // Sort by composite score descending, take top 5
+  scored.sort((a, b) => b.scores.total - a.scores.total);
+  const top5 = scored.slice(0, 5);
+
+  // Build picks array
+  discPicks = top5.map(item => ({
+    ticker: item.ticker,
+    name: item.stats?.name || item.ticker,
+    sector: item.sector,
+    scores: item.scores,
+    stats: item.stats,
+  }));
+
+  // Ensure we have live prices for picks
+  await discFetchPickPrices();
+  discRenderPicks();
+
+  const sectorLabel = sector === 'All' ? 'all sectors' : sector;
+  noteEl.textContent = `Top 5 from ${candidates.length} stocks in ${sectorLabel} · avg P/E ${sectorAvgPE.toFixed(1)}x`;
+
   btn.disabled = false;
-  btn.innerHTML = '⚡ Regenerate';
+  btn.innerHTML = '⚡ Screen Top 5';
 }
 
 // ── Fetch live prices for AI picks (may not be in top-50 cache) ──
@@ -8127,19 +8216,20 @@ function discRenderPicks() {
   const cur = discMarket === 'US' ? '$' : discMarket === 'SE' ? '' : '£';
   const suf = discMarket === 'SE' ? ' kr' : '';
   const fmt = (v) => v != null ? `${cur}${Math.round(Number(v))}${suf}` : '—';
-  document.getElementById('discPicksBody').innerHTML = discPicks.map(pk => {
+  document.getElementById('discPicksBody').innerHTML = discPicks.map((pk, idx) => {
     const live = discLiveData[pk.ticker];
     const price  = live ? fmt(live.price) : '<span style="color:var(--text);font-size:8px;">N/A</span>';
     const chgPct = live ? `${live.pct>=0?'+':''}${Number(live.pct).toFixed(2)}%` : '—';
-    const hi     = live?.hi ? fmt(live.hi) : '—';
-    const lo     = live?.lo ? fmt(live.lo) : '—';
     const up     = live ? live.pct >= 0 : true;
+    const score  = pk.scores ? pk.scores.total.toFixed(1) : '—';
+    const scoreColor = pk.scores && pk.scores.total >= 70 ? 'var(--green)' : pk.scores && pk.scores.total >= 50 ? 'var(--amber)' : 'var(--text)';
+    const reason = pk.scores?.reason || '';
     return `<tr class="disc-pick" onclick="discSelectStock('${pk.ticker}')">
-      <td>${pk.ticker}<span class="disc-badge">PICK</span></td>
+      <td>#${idx+1} ${pk.ticker}<span class="disc-badge">PICK</span></td>
       <td>${price}</td>
       <td style="color:${live?(up?'var(--green)':'var(--red)'):'var(--text3)'}">${chgPct}</td>
-      <td style="color:var(--green)">${hi}</td>
-      <td style="color:var(--red)">${lo}</td>
+      <td style="color:${scoreColor};font-weight:700;">${score}/100</td>
+      <td style="font-size:7px;color:var(--text);text-align:left;white-space:normal;">${reason}</td>
     </tr>`;
   }).join('');
 }
@@ -8155,103 +8245,218 @@ async function discSelectStock(ticker) {
   ]);
 }
 
-// ── Thesis panel ──
-function discRenderThesis(pk) {
+// ── 5-Model AI Scorecard ──
+const discScorecardCache = {}; // cache results per ticker
+let discScorecardRunning = false;
+
+function discRenderQuantScores(ticker, pk) {
   const tp = document.getElementById('discThesis');
-  const vcls = pk.verdictClass === 'buy' ? 'var(--green)' : pk.verdictClass === 'sell' ? 'var(--red)' : 'var(--amber)';
-  tp.innerHTML = `
-    <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
-    <div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0 2px;">${pk.ticker}</div>
-    <div style="font-size:10px;color:var(--text);margin-bottom:6px;">${pk.name || ''}</div>
-    <div style="display:inline-block;background:${vcls}22;border:1px solid ${vcls};color:${vcls};padding:3px 10px;font-size:9px;letter-spacing:0.08em;border-radius:3px;margin-bottom:10px;">${pk.verdict}</div>
-    ${pk.whyNow ? `<div style="font-size:10px;color:var(--amber);margin-bottom:8px;line-height:1.5;">⚡ ${pk.whyNow}</div>` : ''}
-    <div style="font-size:9px;font-weight:700;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:5px;">Thesis</div>
-    ${(pk.thesis||[]).map(pt=>`<div class="disc-pt"><span style="color:var(--green);flex-shrink:0;">▸</span><span>${pt}</span></div>`).join('')}
-    ${pk.catalyst ? `<div style="margin-top:8px;padding:6px 8px;background:rgba(0,255,136,0.06);border-left:2px solid var(--green);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Key Catalyst</div><div style="font-size:9px;color:var(--text);">${pk.catalyst}</div></div>` : ''}
-    ${pk.analystView ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(123,47,255,0.08);border-left:2px solid rgba(123,47,255,0.5);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Analyst View</div><div style="font-size:9px;color:var(--text);">${pk.analystView}</div></div>` : ''}
-    ${pk.risk ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(255,69,96,0.06);border-left:2px solid rgba(255,69,96,0.4);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Key Risk</div><div style="font-size:9px;color:var(--text);">${pk.risk}</div></div>` : ''}
-    ${pk.whyBestNow || pk.whyUnderRadar ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(255,184,0,0.06);border-left:2px solid rgba(255,184,0,0.4);border-radius:0 3px 3px 0;"><div style="font-size:8px;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Best Risk/Reward Now</div><div style="font-size:9px;color:var(--text);">${pk.whyBestNow || pk.whyUnderRadar}</div></div>` : ''}
-    <div style="font-size:8px;color:var(--text);margin-top:8px;font-style:italic;">AI-generated · training data to Aug 2025 · not financial advice</div>
-    <button class="disc-load-btn" onclick="discLoadInTerminal('${pk.ticker}')">LOAD ${pk.ticker} IN OVERVIEW →</button>`;
+  const scores = pk?.scores;
+  const name = pk?.name || '';
+  const live = discLiveData[ticker];
+  const cur = discMarket === 'US' ? '$' : discMarket === 'SE' ? '' : '£';
+  const suf = discMarket === 'SE' ? ' kr' : '';
+  const fmtP = (v) => v != null ? `${cur}${Number(v).toFixed(2)}${suf}` : '—';
+
+  const scoreBar = (label, val, max) => {
+    const pct = Math.min(100, (val / max) * 100);
+    const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--amber)' : 'var(--red)';
+    return `<div style="margin:3px 0;">
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--text);margin-bottom:1px;">
+        <span>${label}</span><span style="color:${color};font-weight:700;">${val.toFixed(1)}/${max}</span>
+      </div>
+      <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${color};border-radius:2px;"></div>
+      </div>
+    </div>`;
+  };
+
+  let html = `<div class="disc-slabel" style="color:rgba(160,100,255,0.9);">5-Model AI Scorecard</div>`;
+  html += `<div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0 2px;">${ticker}</div>`;
+  html += `<div style="font-size:10px;color:var(--text);margin-bottom:6px;">${name}</div>`;
+
+  if (live) {
+    const up = live.pct >= 0;
+    html += `<div style="font-size:10px;margin-bottom:8px;"><span style="color:var(--text);">${fmtP(live.price)}</span> <span style="color:${up?'var(--green)':'var(--red)'};">${up?'+':''}${Number(live.pct).toFixed(2)}%</span></div>`;
+  }
+
+  if (scores) {
+    const totalColor = scores.total >= 70 ? 'var(--green)' : scores.total >= 50 ? 'var(--amber)' : 'var(--red)';
+    html += `<div style="display:inline-block;background:${totalColor}22;border:1px solid ${totalColor};color:${totalColor};padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:0.08em;border-radius:3px;margin-bottom:10px;">COMPOSITE: ${scores.total.toFixed(1)}/100</div>`;
+    html += scoreBar('Momentum', scores.momentum, 25);
+    html += scoreBar('Value', scores.value, 25);
+    html += scoreBar('Size', scores.size, 25);
+    html += scoreBar('Volatility', scores.volatility, 25);
+    html += `<div style="font-size:7px;color:var(--text);margin-top:4px;font-style:italic;">${scores.reason}</div>`;
+  }
+
+  // AI models section
+  html += `<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px;">`;
+  const cached = discScorecardCache[ticker];
+  if (cached) {
+    html += discRenderModelResults(ticker, cached);
+  } else if (!anthropicKey) {
+    html += `<div style="font-size:9px;color:var(--text);">Add API key in settings to run AI models</div>`;
+  } else {
+    html += `<button class="disc-load-btn" style="margin-top:4px;background:rgba(123,47,255,0.15);border-color:rgba(123,47,255,0.5);color:rgba(180,140,255,1);" onclick="discRunScorecard('${ticker}')">⚡ Run 5-Model Deep Analysis</button>`;
+  }
+  html += `</div>`;
+
+  html += `<div style="margin-top:10px;display:flex;gap:6px;">
+    <button class="disc-load-btn" style="flex:1;" onclick="discLoadInTerminal('${ticker}')">LOAD IN OVERVIEW →</button>
+    <button class="disc-load-btn" style="flex:1;background:rgba(123,47,255,0.1);border-color:rgba(123,47,255,0.4);" onclick="discLoadInAI('${ticker}')">LOAD IN AI ANALYSIS →</button>
+  </div>`;
+  html += `<div style="font-size:8px;color:var(--text);margin-top:6px;font-style:italic;">AI-generated · not financial advice</div>`;
+
+  tp.innerHTML = html;
 }
 
-// Cache for on-demand generated theses
-const discThesisCache = {};
+function discRenderModelResults(ticker, results) {
+  const summary = buildMasterSummary(results, 5);
+  const overallColor = summary.overallCls === 'buy' ? 'var(--green)' : summary.overallCls === 'sell' ? 'var(--red)' : 'var(--amber)';
 
-async function discGenerateThesisForStock(ticker) {
-  if (!anthropicKey) { openSettings(); return; }
-  if (discThesisCache[ticker]) { discRenderThesis(discThesisCache[ticker]); return; }
+  let html = `<div style="font-size:9px;font-weight:700;color:var(--text);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">AI Model Consensus</div>`;
 
-  const tp = document.getElementById('discThesis');
-  tp.innerHTML = `
-    <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
-    <div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0 2px;">${ticker}</div>
-    <div style="font-size:9px;color:var(--text);line-height:1.6;margin-top:8px;"><span class="loading-dots"><span></span><span></span><span></span></span> Generating AI thesis for ${ticker}...</div>
-    <button class="disc-load-btn" style="margin-top:12px;" onclick="discLoadInTerminal('${ticker}')">LOAD ${ticker} IN OVERVIEW →</button>`;
+  // Overall verdict
+  html += `<div style="display:inline-block;background:${overallColor}22;border:1px solid ${overallColor};color:${overallColor};padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:0.08em;border-radius:3px;margin-bottom:8px;">${summary.overall}</div>`;
 
-  const mk  = discMarket === 'US' ? 'US (NYSE/NASDAQ)' : discMarket === 'SE' ? 'Sweden (Nasdaq Stockholm/OMX)' : 'United Kingdom (LSE/FTSE)';
-  const cur = discMarket === 'US' ? 'USD' : discMarket === 'SE' ? 'SEK' : 'GBP';
+  // Bullish/Neutral/Bearish badges
+  html += `<div style="display:flex;gap:6px;margin-bottom:8px;">
+    <div style="flex:1;text-align:center;padding:4px;background:rgba(0,255,136,0.08);border-radius:3px;"><div style="font-size:7px;color:var(--text);letter-spacing:0.1em;">BULLISH</div><div style="font-size:14px;font-weight:700;color:var(--green);">${summary.buys}</div></div>
+    <div style="flex:1;text-align:center;padding:4px;background:rgba(255,184,0,0.08);border-radius:3px;"><div style="font-size:7px;color:var(--text);letter-spacing:0.1em;">NEUTRAL</div><div style="font-size:14px;font-weight:700;color:var(--amber);">${summary.holds + summary.neutrals}</div></div>
+    <div style="flex:1;text-align:center;padding:4px;background:rgba(255,69,96,0.08);border-radius:3px;"><div style="font-size:7px;color:var(--text);letter-spacing:0.1em;">BEARISH</div><div style="font-size:14px;font-weight:700;color:var(--red);">${summary.sells}</div></div>
+  </div>`;
 
-  const prompt = `You are a Goldman Sachs senior equity strategist. Provide a detailed investment thesis for ${ticker} in the ${mk} market. Currency: ${cur}. Date: April 2026.
-
-Analyze this stock across:
-- Fundamentals (revenue growth, margin expansion, earnings quality)
-- Valuation relative to sector peers and growth rate
-- Price momentum and technical setup
-- Analyst consensus and price target
-- Sector tailwinds and macro positioning for 2025-2026
-- Key upcoming catalysts and risks
-
-Respond ONLY with valid JSON:
-{
-  "ticker": "${ticker}",
-  "name": "Official Company Name",
-  "verdict": "STRONG BUY or BUY or HOLD or SELL",
-  "verdictClass": "buy or hold or sell",
-  "whyNow": "One sentence on the primary thesis right now",
-  "thesis": ["Specific point 1 with data", "Specific point 2 with data", "Specific point 3 with data"],
-  "catalyst": "Specific upcoming catalyst",
-  "risk": "Main risk to the thesis",
-  "analystView": "Analyst consensus summary",
-  "whyBestNow": "What makes this a compelling opportunity right now"
-}`;
-
-  try {
-    const res = await anthropicFetch(anthropicKey, {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2000,
-      system: 'You are a financial analysis engine. Respond with raw JSON only. No markdown fences. Start with { end with }.',
-      messages: [{ role: 'user', content: prompt }]
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error?.message || 'API error');
-    const text = data.content?.[0]?.text || '';
-    let jsonStr = text.replace(/^```[\w\s]*\n?/gm,'').replace(/```\s*$/gm,'').trim();
-    const s = jsonStr.indexOf('{'), e = jsonStr.lastIndexOf('}');
-    if (s !== -1 && e !== -1) jsonStr = jsonStr.slice(s, e+1);
-    const parsed = JSON.parse(jsonStr);
-    parsed.ticker = ticker;
-    discThesisCache[ticker] = parsed;
-    if (discCurrentStock === ticker) discRenderThesis(parsed);
-  } catch(err) {
-    if (discCurrentStock === ticker) {
-      tp.innerHTML = `
-        <div class="disc-slabel" style="color:rgba(160,100,255,0.9);">AI Investment Thesis</div>
-        <div style="font-size:14px;color:var(--text);font-weight:700;margin:6px 0 8px;">${ticker}</div>
-        <div style="font-size:9px;color:var(--red);line-height:1.6;">⚠ Failed to generate thesis: ${err.message}</div>
-        <button class="disc-load-btn" style="margin-top:12px;" onclick="discGenerateThesisForStock('${ticker}')">↻ RETRY</button>
-        <button class="disc-load-btn" style="margin-top:6px;" onclick="discLoadInTerminal('${ticker}')">LOAD ${ticker} IN OVERVIEW →</button>`;
+  // Individual model verdicts
+  results.forEach(r => {
+    if (!r.parsed) {
+      html += `<div style="display:flex;justify-content:space-between;padding:3px 6px;margin:2px 0;background:var(--bg3);border-radius:3px;font-size:8px;">
+        <span style="color:var(--text);">${r.fm.icon} ${r.fm.name}</span>
+        <span style="color:var(--red);">⚠ Failed</span>
+      </div>`;
+      return;
     }
+    const vc = (r.parsed.verdictClass || '').toLowerCase();
+    const vColor = vc === 'buy' ? 'var(--green)' : vc === 'sell' ? 'var(--red)' : 'var(--amber)';
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 6px;margin:2px 0;background:var(--bg3);border-radius:3px;font-size:8px;">
+      <span style="color:var(--text);">${r.fm.icon} ${r.fm.name}</span>
+      <span style="color:${vColor};font-weight:700;">${r.parsed.verdict || '—'}</span>
+    </div>`;
+    if (r.parsed.verdictDetail) {
+      html += `<div style="font-size:7px;color:var(--text);padding:0 6px 4px;line-height:1.4;">${r.parsed.verdictDetail}</div>`;
+    }
+  });
+
+  return html;
+}
+
+async function discRunScorecard(ticker) {
+  if (!anthropicKey) { openSettings(); return; }
+  if (discScorecardRunning) { return; }
+  if (discScorecardCache[ticker]) {
+    discRenderQuantScores(ticker, discPicks.find(p => p.ticker === ticker) || { ticker, name: ticker });
+    return;
+  }
+
+  discScorecardRunning = true;
+  const tp = document.getElementById('discThesis');
+  const pk = discPicks.find(p => p.ticker === ticker) || { ticker, name: ticker, scores: null };
+
+  // Show loading progress
+  const suffix = discMarket === 'SE' ? '.ST' : discMarket === 'UK' ? '.L' : '';
+  const fullTicker = ticker + suffix;
+  const mk = mkt();
+  const stockCtx = discLiveData[ticker]
+    ? `Stock: ${fullTicker}, Price: ${discLiveData[ticker].price}, Change: ${discLiveData[ticker].pct}%, ${mk.aiMarketContext} Currency: ${mk.currencyCode}. Date: April 2026`
+    : `Stock: ${fullTicker}, ${mk.aiMarketContext} Currency: ${mk.currencyCode}. Date: April 2026`;
+
+  const results = [];
+
+  for (let i = 0; i < FULL_REPORT_MODULES.length; i++) {
+    const fm = FULL_REPORT_MODULES[i];
+    const mod = MODULES[fm.idx];
+
+    // Update progress in thesis panel
+    let progressHtml = `<div class="disc-slabel" style="color:rgba(160,100,255,0.9);">5-Model AI Scorecard</div>`;
+    progressHtml += `<div style="font-size:14px;color:var(--green);font-weight:700;margin:6px 0 2px;">${ticker}</div>`;
+    progressHtml += `<div style="font-size:10px;color:var(--text);margin-bottom:8px;">${pk.name || ''}</div>`;
+    progressHtml += `<div style="font-size:9px;color:var(--amber);margin-bottom:6px;"><span class="loading-dots"><span></span><span></span><span></span></span> Running ${fm.name} (${i+1}/5)...</div>`;
+    // Show completed models
+    results.forEach(r => {
+      const vc = r.parsed ? (r.parsed.verdictClass || '').toLowerCase() : '';
+      const vColor = vc === 'buy' ? 'var(--green)' : vc === 'sell' ? 'var(--red)' : 'var(--amber)';
+      progressHtml += `<div style="display:flex;justify-content:space-between;padding:3px 6px;margin:2px 0;background:var(--bg3);border-radius:3px;font-size:8px;">
+        <span style="color:var(--text);">${r.fm.icon} ${r.fm.name}</span>
+        <span style="color:${r.parsed ? vColor : 'var(--red)'};font-weight:700;">${r.parsed ? (r.parsed.verdict || '—') : '⚠ Failed'}</span>
+      </div>`;
+    });
+    if (discCurrentStock === ticker) tp.innerHTML = progressHtml;
+
+    // Build params for this model — auto-fill ticker and use sensible defaults
+    const params = { p_ticker: ticker };
+    mod.params.forEach(p => {
+      if (p.id === 'p_ticker') return;
+      if (p.type === 'select' && p.options?.length) params[p.id] = p.options[0];
+      if (p.id === 'p_risk') params[p.id] = 'Moderate';
+      if (p.id === 'p_horizon') params[p.id] = 'Medium (1-3yr)';
+      if (p.id === 'p_growth') params[p.id] = 'Base Case (10-15%)';
+      if (p.id === 'p_position') params[p.id] = 'No position (considering buy)';
+      if (p.id === 'p_period') params[p.id] = 'Last 12 months';
+    });
+
+    try {
+      const prompt = mod.prompt(params, stockCtx);
+      const res = await anthropicFetch(anthropicKey, {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4000,
+        system: 'You are a financial analysis engine. You MUST respond with raw JSON only. Never use markdown code fences. Output only the JSON object itself, starting with { and ending with }.',
+        messages: [{ role: 'user', content: prompt }]
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+      const text = data.content?.[0]?.text || '';
+      let jsonStr = text.replace(/^```[\w\s]*\n?/gm,'').replace(/```\s*$/gm,'').trim();
+      const s = jsonStr.indexOf('{'), e2 = jsonStr.lastIndexOf('}');
+      if (s !== -1 && e2 !== -1) jsonStr = jsonStr.slice(s, e2+1);
+      const parsed = JSON.parse(jsonStr);
+      results.push({ fm, mod, parsed, error: null });
+    } catch(err) {
+      results.push({ fm, mod, parsed: null, error: err.message });
+    }
+
+    if (i < FULL_REPORT_MODULES.length - 1) await new Promise(r => setTimeout(r, 300));
+  }
+
+  discScorecardCache[ticker] = results;
+  discScorecardRunning = false;
+  if (discCurrentStock === ticker) {
+    discRenderQuantScores(ticker, pk);
   }
 }
 
 function discShowThesis(ticker) {
   const pk = discPicks.find(p => p.ticker === ticker);
-  if (pk) {
-    discRenderThesis(pk);
-  } else {
-    discGenerateThesisForStock(ticker);
-  }
+  discRenderQuantScores(ticker, pk || { ticker, name: ticker, scores: null });
+}
+
+// ── Load stock into AI Analysis tab ──
+function discLoadInAI(ticker) {
+  const suffix = discMarket === 'SE' ? '.ST' : discMarket === 'UK' ? '.L' : '';
+  const fullTicker = ticker + suffix;
+
+  // Set the ticker in AI Analysis module params
+  switchTab('ai');
+
+  // Auto-fill ticker into the active module or full report
+  setTimeout(() => {
+    const tickerInputs = document.querySelectorAll('#aiParams input[type="text"]');
+    tickerInputs.forEach(inp => {
+      if (inp.placeholder && (inp.placeholder.includes('AAPL') || inp.placeholder.includes('ticker') || inp.placeholder.includes('Ticker') || inp.placeholder.includes('NVDA') || inp.placeholder.includes('GME') || inp.placeholder.includes('sector'))) {
+        inp.value = ticker;
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+  }, 100);
 }
 
 // ── 10-Year Annual Returns from real chart data ──
@@ -8467,6 +8672,7 @@ async function discLoadInTerminal(ticker) {
 }
 
 function initDiscovery() {
+  discPopulateSectors();
   discLoadAllStocks();
 }
 renderSectorHeatmap();
