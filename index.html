@@ -2425,10 +2425,11 @@ tbody tr:last-child td { border-bottom:none; }
           </table>
         </div>
         <div class="disc-panel" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
-          <div class="disc-slabel" id="discAllLabel">
+          <div class="disc-slabel" id="discAllLabel" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             All Exchange Stocks
-            <span id="discAllStatus" style="color:var(--amber);font-size:7px;font-style:italic;">Loading live prices...</span>
-            <span style="color:var(--text);font-size:7px;margin-left:6px;" id="discIndexNote">S&P 100 · live prices via Yahoo Finance</span>
+            <span id="discAllStatus" style="color:var(--amber);font-size:7px;font-style:italic;">Click Load to fetch prices</span>
+            <span style="color:var(--text);font-size:7px;" id="discIndexNote">S&P 100 · live prices via Yahoo Finance</span>
+            <button onclick="discLoadAllStocks()" id="discLoadBtn" style="margin-left:auto;background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.3);color:var(--green);padding:2px 10px;font-size:8px;font-family:inherit;border-radius:3px;cursor:pointer;letter-spacing:0.05em;">⟳ LOAD PRICES</button>
           </div>
           <div style="overflow-y:auto;flex:1;max-height:calc(100vh - 340px);">
             <table class="disc-table">
@@ -7891,32 +7892,46 @@ function discSetMarket(m, btn) {
   discResetChart();
   discResetAnnualReturns();
   discPopulateSectors();
-  discLoadAllStocks();
+  discRenderAllPlaceholder(DISC_TICKERS[discMarket]);
+  document.getElementById('discAllStatus').textContent = 'Click Load to fetch prices';
+  document.getElementById('discAllStatus').style.color = 'var(--amber)';
+  const loadBtn = document.getElementById('discLoadBtn');
+  if (loadBtn) { loadBtn.disabled = false; loadBtn.textContent = '⟳ LOAD PRICES'; }
 }
 
-// ── Live fetch for all 50 stocks (batched, non-blocking) ──
+// ── Live fetch for all stocks (batched, non-blocking) ──
+let discLoadingPrices = false;
+
 async function discLoadAllStocks() {
   if (!PROXY_BASE) {
     document.getElementById('discAllStatus').textContent = 'Add proxy URL in settings';
     discRenderAllStatic();
     return;
   }
+  if (discLoadingPrices) return;
+  discLoadingPrices = true;
 
   const tickers = DISC_TICKERS[discMarket];
   const statusEl = document.getElementById('discAllStatus');
+  const loadBtn  = document.getElementById('discLoadBtn');
   statusEl.textContent = `Loading 0/${tickers.length}...`;
   statusEl.style.color = 'var(--amber)';
+  if (loadBtn) { loadBtn.disabled = true; loadBtn.textContent = 'Loading...'; }
 
-  // Render placeholder rows immediately
+  // Render placeholder rows for tickers not yet in cache
   discRenderAllPlaceholder(tickers);
+  // Immediately show any already-cached rows
+  tickers.forEach(({t, s}) => { if (discLiveData[t]) discUpdateRow(t, s); });
 
-  // Fetch in batches of 5 to avoid overwhelming the proxy
+  // Fetch in batches of 5
   const batchSize = 5;
   let loaded = 0;
+  let success = 0;
 
   for (let i = 0; i < tickers.length; i += batchSize) {
     const batch = tickers.slice(i, i + batchSize);
     await Promise.allSettled(batch.map(async ({t, s}) => {
+      if (discLiveData[t]) { loaded++; success++; statusEl.textContent = `${loaded}/${tickers.length} loaded`; return; }
       try {
         const suffix = discMarket === 'SE' ? '.ST' : discMarket === 'UK' ? '.L' : '';
         const fullT  = t + suffix;
@@ -7932,6 +7947,7 @@ async function discLoadAllStocks() {
             lo: data.low52  || data.dayLow  || null,
           };
           discUpdateRow(t, s);
+          success++;
         }
       } catch(e) {}
       loaded++;
@@ -7939,8 +7955,16 @@ async function discLoadAllStocks() {
     }));
   }
 
-  statusEl.textContent = `${loaded} stocks · live`;
-  statusEl.style.color = 'var(--green)';
+  const failed = tickers.length - success;
+  if (failed > 0) {
+    statusEl.textContent = `${success} loaded · ${failed} failed`;
+    statusEl.style.color = 'var(--amber)';
+  } else {
+    statusEl.textContent = `${success} stocks · live`;
+    statusEl.style.color = 'var(--green)';
+  }
+  if (loadBtn) { loadBtn.disabled = false; loadBtn.textContent = failed > 0 ? '⟳ RETRY FAILED' : '⟳ REFRESH'; }
+  discLoadingPrices = false;
 }
 
 function discRenderAllPlaceholder(tickers) {
@@ -8673,7 +8697,7 @@ async function discLoadInTerminal(ticker) {
 
 function initDiscovery() {
   discPopulateSectors();
-  discLoadAllStocks();
+  discRenderAllPlaceholder(DISC_TICKERS[discMarket]);
 }
 renderSectorHeatmap();
 renderPortfolio();
