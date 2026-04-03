@@ -2377,34 +2377,6 @@ tbody tr:last-child td { border-bottom:none; }
         <div style="font-size:10px;color:var(--text);margin-top:8px;line-height:1.6;">Click any sector in the heatmap above to get an AI-generated analysis of what's driving that sector's performance.</div>
       </div>
     </div>
-
-    <!-- Row 3: Top Movers + Indices & Rates -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-
-      <!-- Top Movers -->
-      <div class="rates-table card">
-        <div class="card-title">Top Movers Today <span style="font-size:8px;color:var(--text);" id="macroMoversNote">from S&P 100</span></div>
-        <table style="margin-top:4px;">
-          <thead><tr><th>Ticker</th><th>Price</th><th>Change</th></tr></thead>
-          <tbody id="macroMoversBody">
-            <tr><td class="td-ticker" colspan="3" style="color:var(--text);text-align:center;padding:16px;">Load prices in Discovery tab first</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Indices & Rates (already live) -->
-      <div class="rates-table card">
-        <div class="card-title" id="ratesTableTitle">Market Indices & Rates <span>Live</span></div>
-        <table style="margin-top:4px;">
-          <thead>
-            <tr><th>Instrument</th><th>Value</th><th>Change</th></tr>
-          </thead>
-          <tbody id="ratesBody">
-            <tr><td class="td-ticker" colspan="3" style="color:var(--text);text-align:center;padding:16px;">Loading live data...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
   <!-- ===== DISCOVERY TAB ===== -->
@@ -6530,9 +6502,8 @@ async function macroFetchQuickPrices() {
         }
       } catch(e) {}
     }));
-    // Update UI progressively
+    // Update breadth progressively
     macroUpdateBreadth();
-    macroUpdateTopMovers();
   }
 }
 
@@ -6554,53 +6525,6 @@ function macroUpdateBreadth() {
   const breadthEl = document.getElementById('macroBreadthChg');
   breadthEl.textContent = `${pct}% advancing · ${sentiment}`;
   breadthEl.className = `macro-change ${pct > 55 ? 'up' : pct < 45 ? 'dn' : 'neu'}`;
-}
-
-// ============================================================
-// MACRO — TOP MOVERS (from live data)
-// ============================================================
-function macroUpdateTopMovers() {
-  const tickers = DISC_TICKERS[activeMarket] || [];
-  const loaded = tickers.filter(({t}) => discLiveData[t]).map(({t, s}) => ({
-    ticker: t, sector: s, ...discLiveData[t]
-  }));
-
-  const tbody = document.getElementById('macroMoversBody');
-  if (!tbody) return;
-
-  if (loaded.length === 0) {
-    tbody.innerHTML = '<tr><td class="td-ticker" colspan="3" style="color:var(--text);text-align:center;padding:16px;"><span class="loading-dots"><span></span><span></span><span></span></span> Fetching prices...</td></tr>';
-    return;
-  }
-
-  // Sort by % change
-  const sorted = [...loaded].sort((a, b) => b.pct - a.pct);
-  const gainers = sorted.slice(0, 5);
-  const losers = sorted.slice(-5).reverse();
-
-  const cur = activeMarket === 'US' ? '$' : activeMarket === 'SE' ? '' : '£';
-  const suf = activeMarket === 'SE' ? ' kr' : '';
-  const fmtP = (v) => `${cur}${Number(v).toFixed(0)}${suf}`;
-
-  let html = '<tr><td colspan="3" style="font-size:8px;color:var(--green);letter-spacing:0.1em;padding:4px 4px 2px;">▲ TOP GAINERS</td></tr>';
-  gainers.forEach(g => {
-    html += `<tr style="cursor:pointer;" onclick="discLoadInTerminal('${g.ticker}')">
-      <td class="td-ticker" style="color:var(--green);">${g.ticker}</td>
-      <td>${fmtP(g.price)}</td>
-      <td class="td-pos">+${Number(g.pct).toFixed(2)}%</td>
-    </tr>`;
-  });
-  html += '<tr><td colspan="3" style="font-size:8px;color:var(--red);letter-spacing:0.1em;padding:8px 4px 2px;">▼ TOP LOSERS</td></tr>';
-  losers.forEach(l => {
-    html += `<tr style="cursor:pointer;" onclick="discLoadInTerminal('${l.ticker}')">
-      <td class="td-ticker" style="color:var(--red);">${l.ticker}</td>
-      <td>${fmtP(l.price)}</td>
-      <td class="td-neg">${Number(l.pct).toFixed(2)}%</td>
-    </tr>`;
-  });
-
-  tbody.innerHTML = html;
-  document.getElementById('macroMoversNote').textContent = `from ${loaded.length} stocks`;
 }
 
 // ============================================================
@@ -6734,12 +6658,14 @@ Then 2-3 bullet points starting with •`;
 
 // Master function to refresh all macro live data
 async function refreshMacroTab() {
+  // Fetch breadth data if Discovery not loaded
+  const hasDiscData = DISC_TICKERS[activeMarket]?.some(({t}) => discLiveData[t]);
   await Promise.all([
     fetchLiveSectorPerformance(),
     fetchMacroPulse(),
+    hasDiscData ? Promise.resolve() : macroFetchQuickPrices(),
   ]);
   macroUpdateBreadth();
-  macroUpdateTopMovers();
 }
 
 // ============================================================
