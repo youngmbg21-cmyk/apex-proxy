@@ -3958,6 +3958,9 @@ function switchTab(name) {
       selectWealthModule(activeWealthModule, firstBtn);
     }
   }
+  if (name === 'macro') {
+    fetchLiveSectorPerformance();
+  }
 }
 
 
@@ -6276,12 +6279,50 @@ function renderDonut(items) {
 // ============================================================
 // MACRO HEATMAP
 // ============================================================
+// Sector ETF mapping per market — used for live YTD performance
+const SECTOR_ETFS = {
+  US: [
+    { name: 'Technology',    etf: 'XLK' },
+    { name: 'Comm Svcs',     etf: 'XLC' },
+    { name: 'Consumer Disc', etf: 'XLY' },
+    { name: 'Consumer Stap', etf: 'XLP' },
+    { name: 'Healthcare',    etf: 'XLV' },
+    { name: 'Financials',    etf: 'XLF' },
+    { name: 'Industrials',   etf: 'XLI' },
+    { name: 'Energy',        etf: 'XLE' },
+    { name: 'Materials',     etf: 'XLB' },
+    { name: 'Utilities',     etf: 'XLU' },
+    { name: 'Real Estate',   etf: 'XLRE' },
+  ],
+  SE: [
+    { name: 'Industrials',   etf: 'VOLV-B.ST' },
+    { name: 'Financials',    etf: 'SEB-A.ST' },
+    { name: 'Technology',    etf: 'ERIC-B.ST' },
+    { name: 'Healthcare',    etf: 'GETI-B.ST' },
+    { name: 'Consumer',      etf: 'HM-B.ST' },
+    { name: 'Materials',     etf: 'SAND.ST' },
+    { name: 'Real Estate',   etf: 'WALL-B.ST' },
+    { name: 'Energy',        etf: 'LUNE.ST' },
+    { name: 'Telecom',       etf: 'TELIA.ST' },
+  ],
+  UK: [
+    { name: 'Energy',        etf: 'SHEL.L' },
+    { name: 'Financials',    etf: 'HSBA.L' },
+    { name: 'Healthcare',    etf: 'AZN.L' },
+    { name: 'Consumer Stap', etf: 'ULVR.L' },
+    { name: 'Materials',     etf: 'RIO.L' },
+    { name: 'Industrials',   etf: 'BA.L' },
+    { name: 'Technology',    etf: 'DARK.L' },
+    { name: 'Telecom',       etf: 'VOD.L' },
+    { name: 'Real Estate',   etf: 'LAND.L' },
+  ],
+};
+
 function renderSectorHeatmap() {
   const m = mkt();
   const sectors = m.sectors;
   const hm = document.getElementById('sectorHeatmap');
   if (!hm) return;
-  // Update the label in the card title
   const lbl = document.getElementById('heatmapMarketLabel');
   if (lbl) lbl.textContent = m.benchmark;
   hm.innerHTML = sectors.map(s => {
@@ -6291,8 +6332,70 @@ function renderSectorHeatmap() {
     else if (s.raw > 0)  bg = 'rgba(0,255,136,0.2)';
     else if (s.raw > -5) bg = 'rgba(255,69,96,0.25)';
     else                 bg = 'rgba(255,69,96,0.55)';
-    return `<div class="heat-cell" style="background:${bg}"><div class="heat-cell-name">${s.name}</div><div class="heat-cell-val">${s.val}</div></div>`;
+    return `<div class="heat-cell" style="background:${bg}"><div class="heat-cell-name">${s.name}</div><div class="heat-cell-val">${s.loading ? '<span class="loading-dots" style="font-size:8px;"><span></span><span></span><span></span></span>' : s.val}</div></div>`;
   }).join('');
+}
+
+// Fetch live YTD sector performance from chart data
+async function fetchLiveSectorPerformance() {
+  if (!PROXY_BASE) return;
+  const market = activeMarket;
+  const etfs = SECTOR_ETFS[market];
+  if (!etfs) return;
+
+  const m = MARKETS[market];
+  // Set loading state
+  m.sectors = etfs.map(e => ({ name: e.name, val: '...', raw: 0, loading: true }));
+  renderSectorHeatmap();
+
+  const base = PROXY_BASE.replace(/\/$/, '');
+  const now = new Date();
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+
+  await Promise.allSettled(etfs.map(async (sector, idx) => {
+    try {
+      const res = await fetch(`${base}/.netlify/functions/chart?symbol=${encodeURIComponent(sector.etf)}&interval=1wk&range=1y`);
+      const data = await res.json();
+      if (!data.closes || !data.timestamps || data.closes.length < 2) return;
+
+      // Find the first close on or after Jan 1 of current year
+      let ytdStartPrice = null;
+      for (let i = 0; i < data.timestamps.length; i++) {
+        const ts = new Date(data.timestamps[i] * 1000);
+        if (ts >= yearStart && data.closes[i] != null && data.closes[i] > 0) {
+          ytdStartPrice = data.closes[i];
+          break;
+        }
+      }
+
+      // Get the latest close
+      let latestPrice = null;
+      for (let i = data.closes.length - 1; i >= 0; i--) {
+        if (data.closes[i] != null && data.closes[i] > 0) {
+          latestPrice = data.closes[i];
+          break;
+        }
+      }
+
+      if (ytdStartPrice && latestPrice) {
+        const ytdPct = ((latestPrice - ytdStartPrice) / ytdStartPrice) * 100;
+        m.sectors[idx] = {
+          name: sector.name,
+          val: `${ytdPct >= 0 ? '+' : ''}${ytdPct.toFixed(1)}%`,
+          raw: Math.round(ytdPct * 10) / 10,
+          loading: false,
+        };
+      } else {
+        m.sectors[idx] = { name: sector.name, val: '—', raw: 0, loading: false };
+      }
+    } catch(e) {
+      m.sectors[idx] = { name: sector.name, val: '—', raw: 0, loading: false };
+    }
+  }));
+
+  // Sort by performance descending
+  m.sectors.sort((a, b) => b.raw - a.raw);
+  renderSectorHeatmap();
 }
 
 // ============================================================
@@ -6349,6 +6452,8 @@ function applyMarket(code) {
 
   // Update macro heatmap sectors and label
   renderSectorHeatmap();
+  // Fetch live sector YTD data if on macro tab
+  if (activeTab === 'macro') fetchLiveSectorPerformance();
 
   // Reload live macro ticker strip for this market
   loadLiveMacro();
