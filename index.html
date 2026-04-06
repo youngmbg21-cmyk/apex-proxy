@@ -2006,8 +2006,7 @@ tbody tr:last-child td { border-bottom:none; }
 
 <!-- TABS -->
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('overview')">📈 Overview</div>
-  <div class="tab" onclick="switchTab('discovery')">🔭 Discovery</div>
+  <div class="tab active" onclick="switchTab('discovery')">🔭 Discovery</div>
   <div class="tab" onclick="switchTab('ai')">🤖 AI Analysis</div>
   <div class="tab" onclick="switchTab('macro')">🌍 Macro</div>
   <div class="tab" onclick="switchTab('wealth')">💎 Wealth Mgmt</div>
@@ -2019,7 +2018,7 @@ tbody tr:last-child td { border-bottom:none; }
 <div class="content">
 
   <!-- ===== OVERVIEW TAB ===== -->
-  <div id="tab-overview">
+  <div id="tab-overview" style="display:none;">
     <div id="overviewEmpty" class="empty-state">
       <div class="icon">📊</div>
       <div>Enter a ticker symbol above and press LOAD to begin</div>
@@ -2380,7 +2379,7 @@ tbody tr:last-child td { border-bottom:none; }
   </div>
 
   <!-- ===== DISCOVERY TAB ===== -->
-  <div id="tab-discovery" style="display:none;">
+  <div id="tab-discovery">
 
     <!-- Internal market selector + generate button -->
     <div class="disc-topbar">
@@ -2421,18 +2420,19 @@ tbody tr:last-child td { border-bottom:none; }
           <div class="disc-slabel" id="discAllLabel" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             All Exchange Stocks
             <span id="discAllStatus" style="color:var(--amber);font-size:7px;font-style:italic;">Click Load to fetch prices</span>
-            <span style="color:var(--text);font-size:7px;" id="discIndexNote">S&P 100 · live prices via Yahoo Finance</span>
+            <span style="color:var(--text);font-size:7px;" id="discIndexNote">S&P 500 · live prices via Yahoo Finance</span>
             <button onclick="discLoadAllStocks()" id="discLoadBtn" style="margin-left:auto;background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.3);color:var(--green);padding:2px 10px;font-size:8px;font-family:inherit;border-radius:3px;cursor:pointer;letter-spacing:0.05em;">⟳ LOAD PRICES</button>
           </div>
           <div style="overflow-y:auto;flex:1;max-height:calc(100vh - 340px);">
             <table class="disc-table">
               <thead><tr>
-                <th style="width:22%">Ticker</th>
-                <th style="width:18%">Price</th>
-                <th style="width:14%">Chg%</th>
-                <th style="width:14%">Hi</th>
-                <th style="width:13%">Lo</th>
-                <th style="width:19%">Sector</th>
+                <th style="width:18%">Ticker</th>
+                <th style="width:14%">Price</th>
+                <th style="width:12%">Chg%</th>
+                <th style="width:14%">Mkt Cap</th>
+                <th style="width:11%">Hi</th>
+                <th style="width:11%">Lo</th>
+                <th style="width:20%">Sector</th>
               </tr></thead>
               <tbody id="discAllBody"></tbody>
             </table>
@@ -3114,7 +3114,7 @@ const reportCache = {};
 
 // ── Full Report persistent state ──
 let frLastParams   = null;   // legacy — kept for retry compatibility
-let activeTab      = 'overview'; // tracks which tab user is currently on
+let activeTab      = 'discovery'; // tracks which tab user is currently on
 let frLastResults  = [];     // array of { fm, mod, parsed, error } — mutable for retries
 let frRunning      = false;  // guard against concurrent AI Analysis runs
 let wrRunning      = false;  // guard against concurrent Wealth runs
@@ -3929,7 +3929,7 @@ function switchTab(name) {
     if (el) el.style.display = t===name ? 'block' : 'none';
   });
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  const tabNames = ['overview','discovery','ai','macro','wealth','portfolio','guide'];
+  const tabNames = ['discovery','ai','macro','wealth','portfolio','guide'];
   const idx = tabNames.indexOf(name);
   const tabEls = document.querySelectorAll('.tab');
   if (tabEls[idx]) tabEls[idx].classList.add('active');
@@ -6498,6 +6498,7 @@ async function macroFetchQuickPrices() {
             pct: data.changePct || 0,
             hi: data.high52 || data.dayHigh || null,
             lo: data.low52 || data.dayLow || null,
+            mktCap: data.marketCap || null,
           };
         }
       } catch(e) {}
@@ -8106,47 +8107,115 @@ function askAboutReport() {
 // S&P 100, FTSE 100, OMX Large Cap — live prices fetched from proxy
 const DISC_TICKERS = {
   US: [
-    // Technology
-    {t:'AAPL',s:'Technology'},{t:'MSFT',s:'Technology'},{t:'NVDA',s:'Technology'},
-    {t:'AVGO',s:'Technology'},{t:'ORCL',s:'Technology'},{t:'CRM',s:'Technology'},
-    {t:'AMD',s:'Technology'},{t:'ADBE',s:'Technology'},{t:'INTC',s:'Technology'},
-    {t:'QCOM',s:'Technology'},{t:'TXN',s:'Technology'},{t:'IBM',s:'Technology'},
-    {t:'NOW',s:'Technology'},{t:'AMAT',s:'Technology'},{t:'MU',s:'Technology'},
-    // Comm Services
-    {t:'GOOGL',s:'Comm Svcs'},{t:'META',s:'Comm Svcs'},{t:'NFLX',s:'Comm Svcs'},
-    {t:'DIS',s:'Comm Svcs'},{t:'CMCSA',s:'Comm Svcs'},{t:'T',s:'Comm Svcs'},
-    {t:'VZ',s:'Comm Svcs'},
-    // Consumer
-    {t:'AMZN',s:'Consumer Disc'},{t:'TSLA',s:'Consumer Disc'},{t:'HD',s:'Consumer Disc'},
-    {t:'MCD',s:'Consumer Disc'},{t:'NKE',s:'Consumer Disc'},{t:'SBUX',s:'Consumer Disc'},
-    {t:'TGT',s:'Consumer Disc'},{t:'LOW',s:'Consumer Disc'},{t:'BKNG',s:'Consumer Disc'},
-    {t:'KO',s:'Consumer Stap'},{t:'PEP',s:'Consumer Stap'},{t:'PG',s:'Consumer Stap'},
-    {t:'WMT',s:'Consumer Stap'},{t:'COST',s:'Consumer Stap'},{t:'PM',s:'Consumer Stap'},
-    {t:'MO',s:'Consumer Stap'},{t:'CL',s:'Consumer Stap'},
-    // Financials
-    {t:'BRK.B',s:'Financials'},{t:'JPM',s:'Financials'},{t:'V',s:'Financials'},
-    {t:'MA',s:'Financials'},{t:'BAC',s:'Financials'},{t:'WFC',s:'Financials'},
-    {t:'GS',s:'Financials'},{t:'MS',s:'Financials'},{t:'BLK',s:'Financials'},
-    {t:'SCHW',s:'Financials'},{t:'C',s:'Financials'},{t:'AXP',s:'Financials'},
-    {t:'USB',s:'Financials'},{t:'PNC',s:'Financials'},
-    // Healthcare
-    {t:'UNH',s:'Healthcare'},{t:'LLY',s:'Healthcare'},{t:'JNJ',s:'Healthcare'},
-    {t:'ABBV',s:'Healthcare'},{t:'MRK',s:'Healthcare'},{t:'PFE',s:'Healthcare'},
-    {t:'TMO',s:'Healthcare'},{t:'ABT',s:'Healthcare'},{t:'DHR',s:'Healthcare'},
-    {t:'BMY',s:'Healthcare'},{t:'AMGN',s:'Healthcare'},{t:'GILD',s:'Healthcare'},
-    {t:'ISRG',s:'Healthcare'},{t:'VRTX',s:'Healthcare'},{t:'REGN',s:'Healthcare'},
-    // Industrials
-    {t:'RTX',s:'Industrials'},{t:'CAT',s:'Industrials'},{t:'BA',s:'Industrials'},
-    {t:'GE',s:'Industrials'},{t:'DE',s:'Industrials'},{t:'HON',s:'Industrials'},
-    {t:'LMT',s:'Industrials'},{t:'UPS',s:'Industrials'},{t:'FDX',s:'Industrials'},
-    {t:'MMM',s:'Industrials'},
-    // Energy
-    {t:'XOM',s:'Energy'},{t:'CVX',s:'Energy'},{t:'SLB',s:'Energy'},
-    {t:'COP',s:'Energy'},{t:'EOG',s:'Energy'},
-    // Materials / Utilities / RE
-    {t:'LIN',s:'Materials'},{t:'APD',s:'Materials'},{t:'NEE',s:'Utilities'},
-    {t:'DUK',s:'Utilities'},{t:'SO',s:'Utilities'},{t:'AMT',s:'Real Estate'},
-    {t:'PLD',s:'Real Estate'},{t:'SPG',s:'Real Estate'},
+    // Technology (75)
+    {t:'AAPL',s:'Technology'},{t:'MSFT',s:'Technology'},{t:'NVDA',s:'Technology'},{t:'AVGO',s:'Technology'},{t:'ORCL',s:'Technology'},
+    {t:'CRM',s:'Technology'},{t:'AMD',s:'Technology'},{t:'ADBE',s:'Technology'},{t:'QCOM',s:'Technology'},{t:'TXN',s:'Technology'},
+    {t:'IBM',s:'Technology'},{t:'NOW',s:'Technology'},{t:'AMAT',s:'Technology'},{t:'MU',s:'Technology'},{t:'INTC',s:'Technology'},
+    {t:'LRCX',s:'Technology'},{t:'KLAC',s:'Technology'},{t:'SNPS',s:'Technology'},{t:'CDNS',s:'Technology'},{t:'MRVL',s:'Technology'},
+    {t:'CSCO',s:'Technology'},{t:'ACN',s:'Technology'},{t:'INTU',s:'Technology'},{t:'FTNT',s:'Technology'},{t:'PANW',s:'Technology'},
+    {t:'CRWD',s:'Technology'},{t:'WDAY',s:'Technology'},{t:'ADSK',s:'Technology'},{t:'ROP',s:'Technology'},{t:'ANSS',s:'Technology'},
+    {t:'CTSH',s:'Technology'},{t:'IT',s:'Technology'},{t:'GLW',s:'Technology'},{t:'TDY',s:'Technology'},{t:'ENPH',s:'Technology'},
+    {t:'ON',s:'Technology'},{t:'MPWR',s:'Technology'},{t:'KEYS',s:'Technology'},{t:'TRMB',s:'Technology'},{t:'FSLR',s:'Technology'},
+    {t:'GEN',s:'Technology'},{t:'GDDY',s:'Technology'},{t:'EPAM',s:'Technology'},{t:'JNPR',s:'Technology'},{t:'PTC',s:'Technology'},
+    {t:'TER',s:'Technology'},{t:'AKAM',s:'Technology'},{t:'SWKS',s:'Technology'},{t:'QRVO',s:'Technology'},{t:'HPQ',s:'Technology'},
+    {t:'HPE',s:'Technology'},{t:'WDC',s:'Technology'},{t:'STX',s:'Technology'},{t:'NTAP',s:'Technology'},{t:'CDW',s:'Technology'},
+    {t:'ZBRA',s:'Technology'},{t:'FFIV',s:'Technology'},{t:'DXC',s:'Technology'},{t:'LDOS',s:'Technology'},{t:'SAIC',s:'Technology'},
+    {t:'PAYC',s:'Technology'},{t:'BR',s:'Technology'},{t:'FIS',s:'Technology'},{t:'FISV',s:'Technology'},
+    {t:'GPN',s:'Technology'},{t:'WEX',s:'Technology'},{t:'NXPI',s:'Technology'},{t:'TYL',s:'Technology'},
+    {t:'SSNC',s:'Technology'},{t:'MTCH',s:'Technology'},{t:'DOCU',s:'Technology'},{t:'VEEV',s:'Technology'},{t:'ZS',s:'Technology'},
+    // Comm Svcs (25)
+    {t:'GOOGL',s:'Comm Svcs'},{t:'META',s:'Comm Svcs'},{t:'NFLX',s:'Comm Svcs'},{t:'DIS',s:'Comm Svcs'},{t:'CMCSA',s:'Comm Svcs'},
+    {t:'T',s:'Comm Svcs'},{t:'VZ',s:'Comm Svcs'},{t:'TMUS',s:'Comm Svcs'},{t:'CHTR',s:'Comm Svcs'},{t:'EA',s:'Comm Svcs'},
+    {t:'TTWO',s:'Comm Svcs'},{t:'OMC',s:'Comm Svcs'},{t:'IPG',s:'Comm Svcs'},{t:'NWS',s:'Comm Svcs'},{t:'NWSA',s:'Comm Svcs'},
+    {t:'FOXA',s:'Comm Svcs'},{t:'FOX',s:'Comm Svcs'},{t:'PARA',s:'Comm Svcs'},{t:'WBD',s:'Comm Svcs'},{t:'LYV',s:'Comm Svcs'},
+    {t:'LUMN',s:'Comm Svcs'},{t:'IAC',s:'Comm Svcs'},{t:'GOOG',s:'Comm Svcs'},{t:'PINS',s:'Comm Svcs'},{t:'SNAP',s:'Comm Svcs'},
+    // Consumer Disc (54)
+    {t:'AMZN',s:'Consumer Disc'},{t:'TSLA',s:'Consumer Disc'},{t:'HD',s:'Consumer Disc'},{t:'MCD',s:'Consumer Disc'},{t:'NKE',s:'Consumer Disc'},
+    {t:'SBUX',s:'Consumer Disc'},{t:'TGT',s:'Consumer Disc'},{t:'LOW',s:'Consumer Disc'},{t:'BKNG',s:'Consumer Disc'},{t:'TJX',s:'Consumer Disc'},
+    {t:'ORLY',s:'Consumer Disc'},{t:'AZO',s:'Consumer Disc'},{t:'GM',s:'Consumer Disc'},{t:'F',s:'Consumer Disc'},{t:'RIVN',s:'Consumer Disc'},
+    {t:'ABNB',s:'Consumer Disc'},{t:'MAR',s:'Consumer Disc'},{t:'HLT',s:'Consumer Disc'},{t:'RCL',s:'Consumer Disc'},{t:'CCL',s:'Consumer Disc'},
+    {t:'MGM',s:'Consumer Disc'},{t:'WYNN',s:'Consumer Disc'},{t:'LVS',s:'Consumer Disc'},{t:'YUM',s:'Consumer Disc'},{t:'CMG',s:'Consumer Disc'},
+    {t:'DRI',s:'Consumer Disc'},{t:'DKNG',s:'Consumer Disc'},{t:'BBY',s:'Consumer Disc'},{t:'KMX',s:'Consumer Disc'},{t:'EBAY',s:'Consumer Disc'},
+    {t:'ETSY',s:'Consumer Disc'},{t:'ROST',s:'Consumer Disc'},{t:'DHI',s:'Consumer Disc'},{t:'LEN',s:'Consumer Disc'},{t:'PHM',s:'Consumer Disc'},
+    {t:'NVR',s:'Consumer Disc'},{t:'TOL',s:'Consumer Disc'},{t:'HAS',s:'Consumer Disc'},{t:'MHK',s:'Consumer Disc'},{t:'WHR',s:'Consumer Disc'},
+    {t:'PVH',s:'Consumer Disc'},{t:'TPR',s:'Consumer Disc'},{t:'RL',s:'Consumer Disc'},{t:'UAA',s:'Consumer Disc'},{t:'VFC',s:'Consumer Disc'},
+    {t:'BWA',s:'Consumer Disc'},{t:'LKQ',s:'Consumer Disc'},{t:'APTV',s:'Consumer Disc'},{t:'TSCO',s:'Consumer Disc'},
+    {t:'DG',s:'Consumer Disc'},{t:'DLTR',s:'Consumer Disc'},{t:'EXPE',s:'Consumer Disc'},{t:'POOL',s:'Consumer Disc'},{t:'GRMN',s:'Consumer Disc'},
+    // Consumer Stap (35)
+    {t:'KO',s:'Consumer Stap'},{t:'PEP',s:'Consumer Stap'},{t:'PG',s:'Consumer Stap'},{t:'WMT',s:'Consumer Stap'},{t:'COST',s:'Consumer Stap'},
+    {t:'PM',s:'Consumer Stap'},{t:'MO',s:'Consumer Stap'},{t:'CL',s:'Consumer Stap'},{t:'MDLZ',s:'Consumer Stap'},{t:'KHC',s:'Consumer Stap'},
+    {t:'GIS',s:'Consumer Stap'},{t:'K',s:'Consumer Stap'},{t:'CPB',s:'Consumer Stap'},{t:'CAG',s:'Consumer Stap'},{t:'MKC',s:'Consumer Stap'},
+    {t:'SJM',s:'Consumer Stap'},{t:'HRL',s:'Consumer Stap'},{t:'TSN',s:'Consumer Stap'},{t:'ADM',s:'Consumer Stap'},{t:'BG',s:'Consumer Stap'},
+    {t:'KR',s:'Consumer Stap'},{t:'SYY',s:'Consumer Stap'},{t:'CLX',s:'Consumer Stap'},{t:'CHD',s:'Consumer Stap'},
+    {t:'EL',s:'Consumer Stap'},{t:'KMB',s:'Consumer Stap'},{t:'KVUE',s:'Consumer Stap'},
+    {t:'STZ',s:'Consumer Stap'},{t:'TAP',s:'Consumer Stap'},{t:'MNST',s:'Consumer Stap'},{t:'CELH',s:'Consumer Stap'},
+    // Financials (65)
+    {t:'BRK.B',s:'Financials'},{t:'JPM',s:'Financials'},{t:'V',s:'Financials'},{t:'MA',s:'Financials'},{t:'BAC',s:'Financials'},
+    {t:'WFC',s:'Financials'},{t:'GS',s:'Financials'},{t:'MS',s:'Financials'},{t:'BLK',s:'Financials'},{t:'SCHW',s:'Financials'},
+    {t:'C',s:'Financials'},{t:'AXP',s:'Financials'},{t:'USB',s:'Financials'},{t:'PNC',s:'Financials'},{t:'TFC',s:'Financials'},
+    {t:'COF',s:'Financials'},{t:'DFS',s:'Financials'},{t:'SYF',s:'Financials'},{t:'AIG',s:'Financials'},{t:'MET',s:'Financials'},
+    {t:'PRU',s:'Financials'},{t:'AFL',s:'Financials'},{t:'ALL',s:'Financials'},{t:'PGR',s:'Financials'},{t:'TRV',s:'Financials'},
+    {t:'HIG',s:'Financials'},{t:'CB',s:'Financials'},{t:'MMC',s:'Financials'},{t:'AON',s:'Financials'},{t:'WTW',s:'Financials'},
+    {t:'ICE',s:'Financials'},{t:'CME',s:'Financials'},{t:'CBOE',s:'Financials'},{t:'NDAQ',s:'Financials'},{t:'MSCI',s:'Financials'},
+    {t:'SPGI',s:'Financials'},{t:'MCO',s:'Financials'},{t:'FDS',s:'Financials'},{t:'CINF',s:'Financials'},{t:'GL',s:'Financials'},
+    {t:'VOYA',s:'Financials'},{t:'PFG',s:'Financials'},{t:'RJF',s:'Financials'},
+    {t:'NTRS',s:'Financials'},{t:'STT',s:'Financials'},{t:'BK',s:'Financials'},{t:'RF',s:'Financials'},{t:'FITB',s:'Financials'},
+    {t:'HBAN',s:'Financials'},{t:'KEY',s:'Financials'},{t:'CFG',s:'Financials'},{t:'MTB',s:'Financials'},{t:'ZION',s:'Financials'},
+    {t:'CMA',s:'Financials'},{t:'ALLY',s:'Financials'},{t:'AMP',s:'Financials'},{t:'IVZ',s:'Financials'},
+    {t:'BEN',s:'Financials'},{t:'TROW',s:'Financials'},{t:'AMG',s:'Financials'},
+    // Healthcare (60)
+    {t:'UNH',s:'Healthcare'},{t:'LLY',s:'Healthcare'},{t:'JNJ',s:'Healthcare'},{t:'ABBV',s:'Healthcare'},{t:'MRK',s:'Healthcare'},
+    {t:'PFE',s:'Healthcare'},{t:'TMO',s:'Healthcare'},{t:'ABT',s:'Healthcare'},{t:'DHR',s:'Healthcare'},{t:'BMY',s:'Healthcare'},
+    {t:'AMGN',s:'Healthcare'},{t:'GILD',s:'Healthcare'},{t:'ISRG',s:'Healthcare'},{t:'VRTX',s:'Healthcare'},{t:'REGN',s:'Healthcare'},
+    {t:'SYK',s:'Healthcare'},{t:'BSX',s:'Healthcare'},{t:'MDT',s:'Healthcare'},{t:'EW',s:'Healthcare'},{t:'ZBH',s:'Healthcare'},
+    {t:'BDX',s:'Healthcare'},{t:'BAX',s:'Healthcare'},{t:'RMD',s:'Healthcare'},{t:'IDXX',s:'Healthcare'},{t:'IQV',s:'Healthcare'},
+    {t:'A',s:'Healthcare'},{t:'WAT',s:'Healthcare'},{t:'MTD',s:'Healthcare'},{t:'HOLX',s:'Healthcare'},{t:'ALGN',s:'Healthcare'},
+    {t:'DXCM',s:'Healthcare'},{t:'PODD',s:'Healthcare'},{t:'MOH',s:'Healthcare'},{t:'HUM',s:'Healthcare'},{t:'CVS',s:'Healthcare'},
+    {t:'CI',s:'Healthcare'},{t:'ELV',s:'Healthcare'},{t:'CNC',s:'Healthcare'},{t:'HCA',s:'Healthcare'},{t:'THC',s:'Healthcare'},
+    {t:'UHS',s:'Healthcare'},{t:'LH',s:'Healthcare'},{t:'DGX',s:'Healthcare'},{t:'CRL',s:'Healthcare'},
+    {t:'MRNA',s:'Healthcare'},{t:'BIIB',s:'Healthcare'},{t:'ALNY',s:'Healthcare'},{t:'BMRN',s:'Healthcare'},
+    {t:'INCY',s:'Healthcare'},{t:'MCK',s:'Healthcare'},{t:'CAH',s:'Healthcare'},{t:'HSIC',s:'Healthcare'},
+    // Industrials (65)
+    {t:'RTX',s:'Industrials'},{t:'CAT',s:'Industrials'},{t:'BA',s:'Industrials'},{t:'GE',s:'Industrials'},{t:'HON',s:'Industrials'},
+    {t:'LMT',s:'Industrials'},{t:'DE',s:'Industrials'},{t:'UPS',s:'Industrials'},{t:'FDX',s:'Industrials'},{t:'MMM',s:'Industrials'},
+    {t:'NOC',s:'Industrials'},{t:'GD',s:'Industrials'},{t:'LHX',s:'Industrials'},{t:'TDG',s:'Industrials'},{t:'HWM',s:'Industrials'},
+    {t:'GWW',s:'Industrials'},{t:'ETN',s:'Industrials'},{t:'EMR',s:'Industrials'},{t:'ROK',s:'Industrials'},{t:'AME',s:'Industrials'},
+    {t:'PH',s:'Industrials'},{t:'DOV',s:'Industrials'},{t:'IR',s:'Industrials'},{t:'XYL',s:'Industrials'},{t:'NDSN',s:'Industrials'},
+    {t:'ITW',s:'Industrials'},{t:'IEX',s:'Industrials'},{t:'TT',s:'Industrials'},{t:'CARR',s:'Industrials'},{t:'OTIS',s:'Industrials'},
+    {t:'JCI',s:'Industrials'},{t:'SWK',s:'Industrials'},{t:'SNA',s:'Industrials'},{t:'FAST',s:'Industrials'},{t:'MSI',s:'Industrials'},
+    {t:'BAH',s:'Industrials'},{t:'HII',s:'Industrials'},{t:'TXT',s:'Industrials'},{t:'UNP',s:'Industrials'},{t:'CSX',s:'Industrials'},
+    {t:'NSC',s:'Industrials'},{t:'DAL',s:'Industrials'},{t:'UAL',s:'Industrials'},{t:'AAL',s:'Industrials'},{t:'LUV',s:'Industrials'},
+    {t:'CHRW',s:'Industrials'},{t:'EXPD',s:'Industrials'},{t:'XPO',s:'Industrials'},{t:'SAIA',s:'Industrials'},{t:'ODFL',s:'Industrials'},
+    {t:'RHI',s:'Industrials'},{t:'MAN',s:'Industrials'},{t:'CTAS',s:'Industrials'},{t:'CPRT',s:'Industrials'},{t:'RSG',s:'Industrials'},
+    {t:'WM',s:'Industrials'},{t:'VRSK',s:'Industrials'},{t:'JBHT',s:'Industrials'},{t:'ALLE',s:'Industrials'},{t:'AOS',s:'Industrials'},
+    {t:'MAS',s:'Industrials'},{t:'PNR',s:'Industrials'},{t:'ROL',s:'Industrials'},{t:'SWK',s:'Industrials'},{t:'CW',s:'Industrials'},
+    // Energy (25)
+    {t:'XOM',s:'Energy'},{t:'CVX',s:'Energy'},{t:'SLB',s:'Energy'},{t:'COP',s:'Energy'},{t:'EOG',s:'Energy'},
+    {t:'OXY',s:'Energy'},{t:'MPC',s:'Energy'},{t:'VLO',s:'Energy'},{t:'PSX',s:'Energy'},{t:'PXD',s:'Energy'},
+    {t:'HES',s:'Energy'},{t:'DVN',s:'Energy'},{t:'FANG',s:'Energy'},{t:'APA',s:'Energy'},{t:'HAL',s:'Energy'},
+    {t:'BKR',s:'Energy'},{t:'OKE',s:'Energy'},{t:'WMB',s:'Energy'},{t:'KMI',s:'Energy'},{t:'LNG',s:'Energy'},
+    {t:'TRGP',s:'Energy'},{t:'MRO',s:'Energy'},{t:'CTRA',s:'Energy'},{t:'EQT',s:'Energy'},{t:'ET',s:'Energy'},
+    // Materials (30)
+    {t:'LIN',s:'Materials'},{t:'APD',s:'Materials'},{t:'ECL',s:'Materials'},{t:'SHW',s:'Materials'},{t:'PPG',s:'Materials'},
+    {t:'NEM',s:'Materials'},{t:'FCX',s:'Materials'},{t:'NUE',s:'Materials'},{t:'STLD',s:'Materials'},{t:'RS',s:'Materials'},
+    {t:'VMC',s:'Materials'},{t:'MLM',s:'Materials'},{t:'CRH',s:'Materials'},{t:'ALB',s:'Materials'},{t:'CE',s:'Materials'},
+    {t:'EMN',s:'Materials'},{t:'IFF',s:'Materials'},{t:'DD',s:'Materials'},{t:'DOW',s:'Materials'},{t:'LYB',s:'Materials'},
+    {t:'PKG',s:'Materials'},{t:'IP',s:'Materials'},{t:'WRK',s:'Materials'},{t:'SEE',s:'Materials'},{t:'SON',s:'Materials'},
+    {t:'AVY',s:'Materials'},{t:'BMS',s:'Materials'},{t:'ATI',s:'Materials'},{t:'X',s:'Materials'},{t:'CLF',s:'Materials'},
+    // Utilities (30)
+    {t:'NEE',s:'Utilities'},{t:'DUK',s:'Utilities'},{t:'SO',s:'Utilities'},{t:'D',s:'Utilities'},{t:'AEP',s:'Utilities'},
+    {t:'EXC',s:'Utilities'},{t:'XEL',s:'Utilities'},{t:'SRE',s:'Utilities'},{t:'PCG',s:'Utilities'},{t:'ED',s:'Utilities'},
+    {t:'EIX',s:'Utilities'},{t:'WEC',s:'Utilities'},{t:'ES',s:'Utilities'},{t:'ETR',s:'Utilities'},{t:'AWK',s:'Utilities'},
+    {t:'ATO',s:'Utilities'},{t:'NI',s:'Utilities'},{t:'CMS',s:'Utilities'},{t:'CNP',s:'Utilities'},{t:'LNT',s:'Utilities'},
+    {t:'EVRG',s:'Utilities'},{t:'AEE',s:'Utilities'},{t:'PNW',s:'Utilities'},{t:'NRG',s:'Utilities'},{t:'VST',s:'Utilities'},
+    {t:'AES',s:'Utilities'},{t:'PPL',s:'Utilities'},{t:'IDA',s:'Utilities'},{t:'POR',s:'Utilities'},{t:'OGE',s:'Utilities'},
+    // Real Estate (30)
+    {t:'AMT',s:'Real Estate'},{t:'PLD',s:'Real Estate'},{t:'SPG',s:'Real Estate'},{t:'CCI',s:'Real Estate'},{t:'EQIX',s:'Real Estate'},
+    {t:'PSA',s:'Real Estate'},{t:'EXR',s:'Real Estate'},{t:'AVB',s:'Real Estate'},{t:'EQR',s:'Real Estate'},{t:'VTR',s:'Real Estate'},
+    {t:'WELL',s:'Real Estate'},{t:'ARE',s:'Real Estate'},{t:'BXP',s:'Real Estate'},{t:'SLG',s:'Real Estate'},
+    {t:'KIM',s:'Real Estate'},{t:'REG',s:'Real Estate'},{t:'FRT',s:'Real Estate'},{t:'NNN',s:'Real Estate'},{t:'O',s:'Real Estate'},
+    {t:'VICI',s:'Real Estate'},{t:'GLPI',s:'Real Estate'},{t:'SBAC',s:'Real Estate'},
+    {t:'DLR',s:'Real Estate'},{t:'IRM',s:'Real Estate'},{t:'HST',s:'Real Estate'},{t:'CBRE',s:'Real Estate'},
   ],
   SE: [
     // Industrials
@@ -8218,9 +8287,9 @@ const DISC_TICKERS = {
 };
 
 const DISC_LABELS = {
-  US: 'S&P 100 · NYSE/NASDAQ · 100 stocks',
-  SE: 'OMX Large Cap · Nasdaq Stockholm · ~80 stocks',
-  UK: 'FTSE 100 · London Stock Exchange · 100 stocks',
+  US: 'S&P 500 · NYSE/NASDAQ',
+  SE: 'OMX Large Cap · Nasdaq Stockholm',
+  UK: 'FTSE 100 · London Stock Exchange',
 };
 
 let discMarket    = 'US';
@@ -8241,7 +8310,7 @@ function discSetMarket(m, btn) {
   const noteEl = document.getElementById('discIndexNote');
   if (noteEl) {
     const notes = {
-      US: 'S&P 100 · 100 stocks · live prices via Yahoo Finance',
+      US: 'S&P 500 · live prices via Yahoo Finance',
       SE: 'OMX Large Cap · ~80 stocks · live prices via Yahoo Finance',
       UK: 'FTSE 100 · 100 stocks · live prices via Yahoo Finance',
     };
@@ -8307,6 +8376,7 @@ async function discLoadAllStocks() {
             pct: data.changePct || 0,
             hi: data.high52 || data.dayHigh || null,
             lo: data.low52  || data.dayLow  || null,
+            mktCap: data.marketCap || null,
           };
           discUpdateRow(t, s);
           success++;
@@ -8329,11 +8399,19 @@ async function discLoadAllStocks() {
   discLoadingPrices = false;
 }
 
+function discFmtMktCap(val) {
+  if (!val || val <= 0) return '—';
+  if (val >= 1e12) return `$${(val/1e12).toFixed(1)}T`;
+  if (val >= 1e9)  return `$${(val/1e9).toFixed(0)}B`;
+  if (val >= 1e6)  return `$${(val/1e6).toFixed(0)}M`;
+  return `$${val.toFixed(0)}`;
+}
+
 function discRenderAllPlaceholder(tickers) {
-  const cur = discMarket === 'US' ? '$' : discMarket === 'SE' ? 'kr' : '£';
   document.getElementById('discAllBody').innerHTML = tickers.map(({t, s}) =>
     `<tr id="disc-row-${t}" onclick="discSelectStock('${t}')">
       <td>${t}</td>
+      <td style="color:var(--text)">—</td>
       <td style="color:var(--text)">—</td>
       <td style="color:var(--text)">—</td>
       <td style="color:var(--text)">—</td>
@@ -8363,6 +8441,7 @@ function discUpdateRow(ticker, sector) {
     <td>${ticker}${discPicks.find(p=>p.ticker===ticker)?'<span class="disc-badge">PICK</span>':''}</td>
     <td>${fmt(d.price)}</td>
     <td style="color:${isUp?'var(--green)':'var(--red)'}">${isUp?'+':''}${Number(d.pct).toFixed(2)}%</td>
+    <td style="color:var(--text)">${discFmtMktCap(d.mktCap)}</td>
     <td style="color:var(--green)">${fmt(d.hi)}</td>
     <td style="color:var(--red)">${fmt(d.lo)}</td>
     <td style="color:var(--text)">${sector}</td>`;
@@ -8587,6 +8666,7 @@ async function discFetchPickPrices() {
               pct:    data.changePct || 0,
               hi:     data.high52    || data.dayHigh || null,
               lo:     data.low52     || data.dayLow  || null,
+              mktCap: data.marketCap || null,
             };
             break; // got data — stop trying
           }
@@ -8688,9 +8768,8 @@ function discRenderQuantScores(ticker, pk) {
   }
   html += `</div>`;
 
-  html += `<div style="margin-top:10px;display:flex;gap:6px;">
-    <button class="disc-load-btn" style="flex:1;" onclick="discLoadInTerminal('${ticker}')">LOAD IN OVERVIEW →</button>
-    <button class="disc-load-btn" style="flex:1;background:rgba(123,47,255,0.1);border-color:rgba(123,47,255,0.4);" onclick="discLoadInAI('${ticker}')">LOAD IN AI ANALYSIS →</button>
+  html += `<div style="margin-top:10px;">
+    <button class="disc-load-btn" style="width:100%;background:rgba(123,47,255,0.1);border-color:rgba(123,47,255,0.4);" onclick="discLoadInAI('${ticker}')">LOAD IN AI ANALYSIS →</button>
   </div>`;
   html += `<div style="font-size:8px;color:var(--text);margin-top:6px;font-style:italic;">AI-generated · not financial advice</div>`;
 

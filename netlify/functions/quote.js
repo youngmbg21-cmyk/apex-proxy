@@ -34,17 +34,19 @@ exports.handler = async (event) => {
   if (!symbol) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Missing symbol' }) };
 
   try {
-    const { status, body } = await get(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`
-    );
+    // Fetch chart (OHLCV) and v11 summary (market cap) in parallel
+    const [chartRes, summaryRes] = await Promise.allSettled([
+      get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`),
+      get(`https://query2.finance.yahoo.com/v11/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=price`),
+    ]);
 
-    if (status !== 200) return {
-      statusCode: status,
-      headers: cors,
-      body: JSON.stringify({ error: `Yahoo returned ${status} for "${symbol}"` })
-    };
+    // Parse chart data
+    if (chartRes.status !== 'fulfilled' || chartRes.value.status !== 200) {
+      const s = chartRes.status === 'fulfilled' ? chartRes.value.status : 500;
+      return { statusCode: s, headers: cors, body: JSON.stringify({ error: `Yahoo returned ${s} for "${symbol}"` }) };
+    }
 
-    const data = JSON.parse(body);
+    const data = JSON.parse(chartRes.value.body);
     const result = data?.chart?.result?.[0];
     if (!result) return { statusCode: 404, headers: cors, body: JSON.stringify({ error: `"${symbol}" not found` }) };
 
@@ -64,6 +66,17 @@ exports.handler = async (event) => {
     const chg      = prev ? price - prev : 0;
     const pct      = prev ? (chg / prev) * 100 : 0;
 
+    // Parse market cap from v11 summary
+    let marketCap = null;
+    if (summaryRes.status === 'fulfilled' && summaryRes.value.status === 200) {
+      try {
+        const sd = JSON.parse(summaryRes.value.body);
+        const pr = sd?.quoteSummary?.result?.[0]?.price || {};
+        const mc = pr.marketCap;
+        marketCap = mc && typeof mc === 'object' && 'raw' in mc ? mc.raw : (mc || null);
+      } catch(e) {}
+    }
+
     return {
       statusCode: 200,
       headers: cors,
@@ -81,6 +94,7 @@ exports.handler = async (event) => {
         change:      Math.round(chg * 10000) / 10000,
         changePct:   Math.round(pct * 10000) / 10000,
         marketState: m.marketState || 'CLOSED',
+        marketCap,
       })
     };
   } catch (err) {
