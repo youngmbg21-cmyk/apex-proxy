@@ -4210,13 +4210,13 @@ function renderChartJsOHLC(wrap, data, ticker, range) {
       },
       scales: {
         x: {
-          ticks: { color: '#4A6080', font: { size: 9 }, maxTicksLimit: 8 },
+          ticks: { color: '#E2EAF4', font: { size: 9 }, maxTicksLimit: 8 },
           grid:  { color: 'rgba(255,255,255,0.04)' },
         },
         y: {
           position: 'right',
           ticks: {
-            color: '#4A6080',
+            color: '#E2EAF4',
             font: { size: 9 },
             callback: (v) => `${mk.currency}${Number(v).toFixed(2)}`
           },
@@ -8217,71 +8217,78 @@ const DISC_TICKERS = {
     {t:'DLR',s:'Real Estate'},{t:'IRM',s:'Real Estate'},{t:'HST',s:'Real Estate'},{t:'CBRE',s:'Real Estate'},
   ],
   SE: [
+    // OMXS30 — 30 stocks
     // Industrials
-    {t:'VOLV-B',s:'Industrials'},{t:'ATCO-A',s:'Industrials'},{t:'SKF-B',s:'Industrials'},
-    {t:'ABB',s:'Industrials'},{t:'SAND',s:'Materials'},{t:'ASSA-B',s:'Industrials'},
-    {t:'ALFA',s:'Industrials'},{t:'NIBE-B',s:'Industrials'},{t:'BALD-B',s:'Industrials'},
-    {t:'HUSQ-B',s:'Industrials'},{t:'EPIROC-A',s:'Industrials'},{t:'SWECO-B',s:'Industrials'},
-    {t:'TREL-B',s:'Industrials'},{t:'DIOS-B',s:'Industrials'},{t:'NCC-B',s:'Industrials'},
+    {t:'VOLV-B',s:'Industrials'},{t:'ATCO-A',s:'Industrials'},{t:'SAND',s:'Industrials'},
+    {t:'ASSA-B',s:'Industrials'},{t:'ALFA',s:'Industrials'},{t:'SKF-B',s:'Industrials'},
+    {t:'EPIROC-A',s:'Industrials'},{t:'NIBE-B',s:'Industrials'},
     // Technology
-    {t:'ERIC-B',s:'Technology'},{t:'HEXA-B',s:'Technology'},{t:'EVO',s:'Technology'},
-    {t:'SINCH',s:'Technology'},{t:'ADDTECH-B',s:'Technology'},{t:'KNOW-IT',s:'Technology'},
-    {t:'VITEC-B',s:'Technology'},{t:'CELAV',s:'Technology'},
+    {t:'ERIC-B',s:'Technology'},{t:'HEXA-B',s:'Technology'},{t:'SINCH',s:'Technology'},
     // Financials
-    {t:'SEB-A',s:'Financials'},{t:'SWED-A',s:'Financials'},{t:'INVE-B',s:'Financials'},
-    {t:'AXFO',s:'Financials'},{t:'LATO-B',s:'Financials'},{t:'KINV-B',s:'Financials'},
-    {t:'LUND-B',s:'Financials'},{t:'NDA-SE',s:'Financials'},{t:'TRIAN-B',s:'Financials'},
-    {t:'BURE',s:'Financials'},{t:'INDU-C',s:'Financials'},{t:'SWDBANK',s:'Financials'},
+    {t:'SEB-A',s:'Financials'},{t:'SWED-A',s:'Financials'},{t:'SHB-A',s:'Financials'},
+    {t:'NDA-SE',s:'Financials'},{t:'INVE-B',s:'Financials'},
     // Consumer
-    {t:'HM-B',s:'Consumer'},{t:'ESSITY-B',s:'Consumer'},{t:'HUSQ-B',s:'Consumer'},
-    {t:'GETI-B',s:'Consumer'},{t:'ELUX-B',s:'Consumer'},{t:'CAST',s:'Consumer'},
-    {t:'BRAV-A',s:'Consumer'},{t:'CLAS-B',s:'Consumer'},
+    {t:'HM-B',s:'Consumer Disc'},{t:'ESSITY-B',s:'Consumer Stap'},{t:'EVO',s:'Consumer Disc'},
+    {t:'ELUX-B',s:'Consumer Disc'},
     // Healthcare
-    {t:'SOBI',s:'Healthcare'},{t:'GETINGE-B',s:'Healthcare'},{t:'EKTA-B',s:'Healthcare'},
-    {t:'ALIV-SDB',s:'Healthcare'},{t:'ONCO',s:'Healthcare'},
-    // Materials / Energy
-    {t:'SSAB-A',s:'Materials'},{t:'BOLIDEN',s:'Materials'},{t:'HANZA',s:'Materials'},
-    {t:'NENT-A',s:'Comm Svcs'},{t:'MTG-B',s:'Comm Svcs'},
-    // Real Estate
-    {t:'FABG',s:'Real Estate'},{t:'CAST',s:'Real Estate'},{t:'SAGAX-D',s:'Real Estate'},
-    {t:'WIHL',s:'Real Estate'},{t:'ATRLJ-B',s:'Real Estate'},
+    {t:'GETINGE-B',s:'Healthcare'},{t:'SOBI',s:'Healthcare'},
+    // Materials
+    {t:'BOLIDEN',s:'Materials'},{t:'SSAB-A',s:'Materials'},
+    // Comm Svcs
+    {t:'TEL2-B',s:'Comm Svcs'},{t:'TELIA',s:'Comm Svcs'},
+    // Energy / Other
+    {t:'ABB',s:'Industrials'},{t:'KINV-B',s:'Financials'},
+    {t:'SWMA',s:'Consumer Disc'},{t:'SAAB-B',s:'Industrials'},
   ],
   UK: [
-    // Healthcare
-    {t:'AZN',s:'Healthcare'},{t:'GSK',s:'Healthcare'},{t:'SHBN',s:'Healthcare'},
-    {t:'BVIC',s:'Healthcare'},{t:'HIKM',s:'Healthcare'},{t:'CRDA',s:'Materials'},
-    // Energy
-    {t:'SHEL',s:'Energy'},{t:'BP',s:'Energy'},{t:'TLW',s:'Energy'},
-    {t:'ENQ',s:'Energy'},{t:'HARBOUR',s:'Energy'},
-    // Financials
+    // FTSE 100 — 100 stocks
+    // Energy (7)
+    {t:'SHEL',s:'Energy'},{t:'BP',s:'Energy'},{t:'SSE',s:'Energy'},
+    {t:'CNA',s:'Energy'},{t:'HTG',s:'Energy'},{t:'HBR',s:'Energy'},{t:'ENT',s:'Energy'},
+    // Financials (20)
     {t:'HSBA',s:'Financials'},{t:'LLOY',s:'Financials'},{t:'BARC',s:'Financials'},
     {t:'STAN',s:'Financials'},{t:'NWG',s:'Financials'},{t:'LSEG',s:'Financials'},
-    {t:'EXPN',s:'Financials'},{t:'PRU',s:'Financials'},{t:'AVIVA',s:'Financials'},
-    {t:'LGEN',s:'Financials'},{t:'ADM',s:'Financials'},{t:'JUP',s:'Financials'},
-    {t:'MNG',s:'Financials'},{t:'ABDN',s:'Financials'},{t:'HL',s:'Financials'},
-    {t:'III',s:'Financials'},{t:'OCDO',s:'Financials'},
-    // Consumer
-    {t:'ULVR',s:'Consumer'},{t:'DGE',s:'Consumer'},{t:'REL',s:'Consumer'},
-    {t:'RKT',s:'Consumer'},{t:'IMB',s:'Consumer'},{t:'BATS',s:'Consumer'},
-    {t:'CCH',s:'Consumer'},{t:'MKS',s:'Consumer'},{t:'TSCO',s:'Consumer'},
-    {t:'SBRY',s:'Consumer'},{t:'HWDN',s:'Consumer'},{t:'JD',s:'Consumer'},
-    {t:'SPX',s:'Consumer'},{t:'BWY',s:'Consumer'},
-    // Materials
+    {t:'PRU',s:'Financials'},{t:'AVIVA',s:'Financials'},{t:'LGEN',s:'Financials'},
+    {t:'HL',s:'Financials'},{t:'III',s:'Financials'},{t:'PHNX',s:'Financials'},
+    {t:'SLA',s:'Financials'},{t:'SDR',s:'Financials'},{t:'EXPN',s:'Financials'},
+    {t:'ADM',s:'Financials'},{t:'INVP',s:'Financials'},{t:'MNG',s:'Financials'},
+    {t:'CBPX',s:'Financials'},{t:'DARK',s:'Financials'},
+    // Healthcare (6)
+    {t:'AZN',s:'Healthcare'},{t:'GSK',s:'Healthcare'},{t:'HIKM',s:'Healthcare'},
+    {t:'SMT',s:'Healthcare'},{t:'CON',s:'Healthcare'},{t:'CRDA',s:'Healthcare'},
+    // Consumer Staples (10)
+    {t:'ULVR',s:'Consumer Stap'},{t:'DGE',s:'Consumer Stap'},{t:'RKT',s:'Consumer Stap'},
+    {t:'IMB',s:'Consumer Stap'},{t:'BATS',s:'Consumer Stap'},{t:'TSCO',s:'Consumer Stap'},
+    {t:'SBRY',s:'Consumer Stap'},{t:'ABF',s:'Consumer Stap'},{t:'CCH',s:'Consumer Stap'},
+    {t:'HLMA',s:'Consumer Stap'},
+    // Consumer Disc (10)
+    {t:'NXT',s:'Consumer Disc'},{t:'IHG',s:'Consumer Disc'},{t:'WTB',s:'Consumer Disc'},
+    {t:'BMEB',s:'Consumer Disc'},{t:'JD',s:'Consumer Disc'},{t:'FRAS',s:'Consumer Disc'},
+    {t:'PSON',s:'Consumer Disc'},{t:'ENT',s:'Consumer Disc'},{t:'BDEV',s:'Consumer Disc'},
+    {t:'PSN',s:'Consumer Disc'},
+    // Industrials (15)
+    {t:'BA',s:'Industrials'},{t:'RR',s:'Industrials'},{t:'WEIR',s:'Industrials'},
+    {t:'IAG',s:'Industrials'},{t:'RSW',s:'Industrials'},{t:'SMIN',s:'Industrials'},
+    {t:'BNZL',s:'Industrials'},{t:'DCC',s:'Industrials'},{t:'RTO',s:'Industrials'},
+    {t:'CPG',s:'Industrials'},{t:'BWNG',s:'Industrials'},{t:'HWDN',s:'Industrials'},
+    {t:'SGRO',s:'Industrials'},{t:'RS1',s:'Industrials'},{t:'MNDI',s:'Industrials'},
+    // Materials (8)
     {t:'RIO',s:'Materials'},{t:'GLEN',s:'Materials'},{t:'AAL',s:'Materials'},
-    {t:'MNDI',s:'Materials'},{t:'SMDS',s:'Materials'},{t:'CRH',s:'Materials'},
-    // Industrials
-    {t:'IAG',s:'Industrials'},{t:'RR',s:'Industrials'},{t:'BA',s:'Industrials'},
-    {t:'WEIR',s:'Industrials'},{t:'IMI',s:'Industrials'},{t:'DCC',s:'Industrials'},
-    {t:'GKN',s:'Industrials'},{t:'EXPN',s:'Industrials'},
-    // Technology / Comm
-    {t:'SGE',s:'Technology'},{t:'AUTO',s:'Technology'},{t:'MONY',s:'Technology'},
-    {t:'WPP',s:'Comm Svcs'},{t:'ITV',s:'Comm Svcs'},{t:'VOD',s:'Comm Svcs'},
-    {t:'BT.A',s:'Comm Svcs'},{t:'TALK',s:'Comm Svcs'},
-    // Utilities / Real Estate
-    {t:'NG',s:'Utilities'},{t:'SSE',s:'Utilities'},{t:'UU',s:'Utilities'},
-    {t:'SVT',s:'Utilities'},{t:'BWY',s:'Utilities'},
+    {t:'CRH',s:'Materials'},{t:'ANTO',s:'Materials'},{t:'EVR',s:'Materials'},
+    {t:'FRES',s:'Materials'},{t:'JMT',s:'Materials'},
+    // Technology (5)
+    {t:'SAGE',s:'Technology'},{t:'AUTO',s:'Technology'},{t:'DSCV',s:'Technology'},
+    {t:'SFOR',s:'Technology'},{t:'DARK',s:'Technology'},
+    // Comm Svcs (6)
+    {t:'VOD',s:'Comm Svcs'},{t:'WPP',s:'Comm Svcs'},{t:'BT.A',s:'Comm Svcs'},
+    {t:'ITV',s:'Comm Svcs'},{t:'REL',s:'Comm Svcs'},{t:'INF',s:'Comm Svcs'},
+    // Utilities (6)
+    {t:'NG',s:'Utilities'},{t:'UU',s:'Utilities'},{t:'SVT',s:'Utilities'},
+    {t:'PNN',s:'Utilities'},{t:'CWR',s:'Utilities'},{t:'DRAX',s:'Utilities'},
+    // Real Estate (7)
     {t:'LAND',s:'Real Estate'},{t:'BLND',s:'Real Estate'},{t:'HMSO',s:'Real Estate'},
-    {t:'SGRO',s:'Real Estate'},{t:'LXI',s:'Real Estate'},
+    {t:'SGRO',s:'Real Estate'},{t:'UTG',s:'Real Estate'},{t:'BRBY',s:'Real Estate'},
+    {t:'PSH',s:'Real Estate'},
   ],
 };
 
@@ -8960,6 +8967,25 @@ async function discLoadAnnualReturns(ticker) {
 
     if (!years.length) throw new Error('Insufficient history');
 
+    // Calculate average annual return across ALL available years
+    const allYears = Object.keys(yearMap).map(Number).sort();
+    const allReturns = [];
+    for (const y of allYears) {
+      if (y === currentYear) continue; // skip incomplete current year
+      if (yearMap[y] && yearMap[y].first > 0) {
+        allReturns.push(((yearMap[y].last - yearMap[y].first) / yearMap[y].first * 100));
+      }
+    }
+    const avgReturn = allReturns.length ? parseFloat((allReturns.reduce((a,b) => a+b, 0) / allReturns.length).toFixed(1)) : 0;
+
+    // Add AVG bar at the end
+    const labels = [...years.map(y => y.year), 'AVG'];
+    const values = [...years.map(y => y.ret), avgReturn];
+    const bgColors = years.map(y => y.ret >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,69,96,0.5)');
+    bgColors.push('rgba(123,47,255,0.5)');
+    const borderColors = years.map(y => y.ret >= 0 ? '#00FF88' : '#FF4560');
+    borderColors.push('#7B2FFF');
+
     if (discAnnChart) discAnnChart.destroy();
     wrap.innerHTML = '<div style="position:relative;width:100%;height:180px;"><canvas id="discAnnCanvas"></canvas></div>';
     const ctx = document.getElementById('discAnnCanvas').getContext('2d');
@@ -8967,11 +8993,11 @@ async function discLoadAnnualReturns(ticker) {
     discAnnChart = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: years.map(y => y.year),
+        labels,
         datasets: [{
-          data: years.map(y => y.ret),
-          backgroundColor: years.map(y => y.ret >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,69,96,0.5)'),
-          borderColor:     years.map(y => y.ret >= 0 ? '#00FF88' : '#FF4560'),
+          data: values,
+          backgroundColor: bgColors,
+          borderColor: borderColors,
           borderWidth: 1,
           borderRadius: 3,
         }]
@@ -8987,8 +9013,8 @@ async function discLoadAnnualReturns(ticker) {
           }
         },
         scales: {
-          x: { ticks: { color: '#4A6080', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#4A6080', font: { size: 9 }, callback: v => `${v>=0?'+':''}${v}%` }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          x: { ticks: { color: '#E2EAF4', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#E2EAF4', font: { size: 9 }, callback: v => `${v>=0?'+':''}${v}%` }, grid: { color: 'rgba(255,255,255,0.04)' } }
         }
       }
     });
@@ -9056,8 +9082,8 @@ async function discLoadChart(ticker) {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { backgroundColor: '#131920', borderColor: 'rgba(0,255,136,0.2)', borderWidth: 1, titleColor: '#8FA3BC', bodyColor: '#E2EAF4', callbacks: { label: c => ` ${cur}${Number(c.raw).toFixed(2)}` } } },
         scales: {
-          x: { ticks: { color: '#4A6080', font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { position: 'right', ticks: { color: '#4A6080', font: { size: 9 }, callback: v => `${cur}${Number(v).toFixed(2)}` }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          x: { ticks: { color: '#E2EAF4', font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { position: 'right', ticks: { color: '#E2EAF4', font: { size: 9 }, callback: v => `${cur}${Number(v).toFixed(2)}` }, grid: { color: 'rgba(255,255,255,0.04)' } }
         }
       }
     });
