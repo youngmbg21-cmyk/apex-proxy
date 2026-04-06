@@ -2426,13 +2426,12 @@ tbody tr:last-child td { border-bottom:none; }
           <div style="overflow-y:auto;flex:1;max-height:calc(100vh - 340px);">
             <table class="disc-table">
               <thead><tr>
-                <th style="width:18%">Ticker</th>
-                <th style="width:14%">Price</th>
-                <th style="width:12%">Chg%</th>
-                <th style="width:14%">Mkt Cap</th>
-                <th style="width:11%">Hi</th>
-                <th style="width:11%">Lo</th>
-                <th style="width:20%">Sector</th>
+                <th style="width:22%">Ticker</th>
+                <th style="width:18%">Price</th>
+                <th style="width:14%">Chg%</th>
+                <th style="width:14%">Hi</th>
+                <th style="width:13%">Lo</th>
+                <th style="width:19%">Sector</th>
               </tr></thead>
               <tbody id="discAllBody"></tbody>
             </table>
@@ -6498,7 +6497,7 @@ async function macroFetchQuickPrices() {
             pct: data.changePct || 0,
             hi: data.high52 || data.dayHigh || null,
             lo: data.low52 || data.dayLow || null,
-            mktCap: data.marketCap || null,
+            name: data.name || '',
           };
         }
       } catch(e) {}
@@ -8104,7 +8103,7 @@ function askAboutReport() {
 // DISCOVERY TAB
 // ============================================================
 
-// S&P 100, FTSE 100, OMX Large Cap — live prices fetched from proxy
+// S&P 500, FTSE 100, OMXS30 — live prices fetched from proxy
 const DISC_TICKERS = {
   US: [
     // Technology (75)
@@ -8288,7 +8287,7 @@ const DISC_TICKERS = {
 
 const DISC_LABELS = {
   US: 'S&P 500 · NYSE/NASDAQ',
-  SE: 'OMX Large Cap · Nasdaq Stockholm',
+  SE: 'OMXS30 · Nasdaq Stockholm',
   UK: 'FTSE 100 · London Stock Exchange',
 };
 
@@ -8311,8 +8310,8 @@ function discSetMarket(m, btn) {
   if (noteEl) {
     const notes = {
       US: 'S&P 500 · live prices via Yahoo Finance',
-      SE: 'OMX Large Cap · ~80 stocks · live prices via Yahoo Finance',
-      UK: 'FTSE 100 · 100 stocks · live prices via Yahoo Finance',
+      SE: 'OMXS30 · live prices via Yahoo Finance',
+      UK: 'FTSE 100 · live prices via Yahoo Finance',
     };
     noteEl.textContent = notes[m] || '';
   }
@@ -8376,7 +8375,7 @@ async function discLoadAllStocks() {
             pct: data.changePct || 0,
             hi: data.high52 || data.dayHigh || null,
             lo: data.low52  || data.dayLow  || null,
-            mktCap: data.marketCap || null,
+            name: data.name || '',
           };
           discUpdateRow(t, s);
           success++;
@@ -8399,19 +8398,10 @@ async function discLoadAllStocks() {
   discLoadingPrices = false;
 }
 
-function discFmtMktCap(val) {
-  if (!val || val <= 0) return '—';
-  if (val >= 1e12) return `$${(val/1e12).toFixed(1)}T`;
-  if (val >= 1e9)  return `$${(val/1e9).toFixed(0)}B`;
-  if (val >= 1e6)  return `$${(val/1e6).toFixed(0)}M`;
-  return `$${val.toFixed(0)}`;
-}
-
 function discRenderAllPlaceholder(tickers) {
   document.getElementById('discAllBody').innerHTML = tickers.map(({t, s}) =>
     `<tr id="disc-row-${t}" onclick="discSelectStock('${t}')">
       <td>${t}</td>
-      <td style="color:var(--text)">—</td>
       <td style="color:var(--text)">—</td>
       <td style="color:var(--text)">—</td>
       <td style="color:var(--text)">—</td>
@@ -8441,7 +8431,6 @@ function discUpdateRow(ticker, sector) {
     <td>${ticker}${discPicks.find(p=>p.ticker===ticker)?'<span class="disc-badge">PICK</span>':''}</td>
     <td>${fmt(d.price)}</td>
     <td style="color:${isUp?'var(--green)':'var(--red)'}">${isUp?'+':''}${Number(d.pct).toFixed(2)}%</td>
-    <td style="color:var(--text)">${discFmtMktCap(d.mktCap)}</td>
     <td style="color:var(--green)">${fmt(d.hi)}</td>
     <td style="color:var(--red)">${fmt(d.lo)}</td>
     <td style="color:var(--text)">${sector}</td>`;
@@ -8666,7 +8655,7 @@ async function discFetchPickPrices() {
               pct:    data.changePct || 0,
               hi:     data.high52    || data.dayHigh || null,
               lo:     data.low52     || data.dayLow  || null,
-              mktCap: data.marketCap || null,
+              name: data.name || '',
             };
             break; // got data — stop trying
           }
@@ -8703,7 +8692,8 @@ function discRenderPicks() {
 // ── Stock click — loads chart, annual returns, thesis ──
 async function discSelectStock(ticker) {
   discCurrentStock = ticker;
-  document.getElementById('discChartLabel').textContent = ticker;
+  const companyName = discLiveData[ticker]?.name || '';
+  document.getElementById('discChartLabel').textContent = companyName ? `${ticker} — ${companyName}` : ticker;
   discShowThesis(ticker);
   await Promise.all([
     discLoadChart(ticker),
